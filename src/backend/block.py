@@ -37,11 +37,7 @@ class Block:
                 return True
 
     def validate(self, utxos, blockchain):
-        if not int(self.hash().hexdigest()[:difficulty], base=16) == 0:
-            return False
-
-        if not self.previous_hash == blockchain.at(self.index - 1).current_hash:
-            # TODO resolve conflict
+        if int(self.hash().hexdigest()[:difficulty], base=16) != 0:
             return False
 
         temp_utxos = deepcopy(utxos)
@@ -50,6 +46,9 @@ class Block:
                 transaction.update_utxos(temp_utxos)
             else:
                 return False
+
+        if self.previous_hash != blockchain.at(self.index - 1).current_hash:
+            raise ValueError
 
         block_validated.set()
         return True
@@ -65,6 +64,9 @@ class GenesisBlock(Block):
 
     def add(self, transaction):
         self.transactions.append(transaction)
+
+    def full(self):
+        return len(self.transactions) == 1
 
     def mine(self, _):
         self.current_hash = 0

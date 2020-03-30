@@ -1,5 +1,6 @@
 #!/usr/bin/env python3.8
 
+from collections import defaultdict
 from copy import deepcopy
 from flask import Flask, request
 from http import HTTPStatus
@@ -16,7 +17,21 @@ import state
 from transaction import GenesisTransaction, Transaction
 
 
-# TODO CANNOT VALIDATE BLOCK AND THEN UPDATE UTXOS, UPDATING MUST OCCUR AT TX VALIDATION LEVEL
+# TODO diff after failed mining
+
+
+def broadpost(path, data):
+    for address in state.nodes:
+        if address != node.address:
+            post(f"http://{address}{path}", data=dumps(data))
+
+
+def broadget(path):
+    return [
+        get(f"http://{address}{path}")
+        for address in state.nodes
+        if address != node.address
+    ]
 
 
 def generate_transaction(receiver_address, amount):
@@ -28,11 +43,7 @@ def generate_transaction(receiver_address, amount):
         amount,
         state.utxos,
     )
-
-    for address in state.nodes:
-        if address != node.address:
-            post(f"http://{address}/validate_transaction", data=dumps(transaction))
-
+    broadpost("/validate_transaction", transaction)
     handle_transaction(transaction)
 
 
@@ -45,11 +56,26 @@ def handle_transaction(transaction):
             mine()
 
 
+# TODO check with block headers, resolve conflict from check failure onwards
+def validate_blockchain(blockchain):
+    if blockchain.validate(defaultdict(dict)):
+        with state.committed_utxos_lock:
+            state.committed_utxos = defaultdict(dict)
+            blockchain.update_utxos(state.committed_utxos)
+        with state.blockchain_lock:
+            state.blockchain = blockchain
+        with state.utxos_lock:
+            state.utxos = deepcopy(state.committed_utxos)
+        with state.block_lock:
+            state.block = Block()
+        print("blockchain validating succeeded")
+    else:
+        print("blockchain validating failed")
+
+
 def mine():
     if state.block.mine(state.blockchain):
-        for address in state.nodes:
-            if address != node.address:
-                post(f"http://{address}/validate_block", data=dumps(state.block))
+        broadpost("/validate_block", state.block)
         with state.blockchain_lock:
             state.blockchain.add(state.block)
         with state.committed_utxos_lock:
@@ -109,18 +135,26 @@ def validate_transaction():
 @app.route("/validate_block", methods=["POST"])
 def validate_block():
     block = loads(request.get_data())
-    if block.validate(state.committed_utxos, state.blockchain):
-        with state.blockchain_lock:
-            state.blockchain.add(block)
-        with state.committed_utxos_lock:
-            state.block.update_utxos(state.committed_utxos)
-        with state.utxos_lock:
-            state.utxos = deepcopy(state.committed_utxos)
-        with state.block_lock:
-            block = Block()
-        print("block validating succeeded")
-    else:
-        print("block validating failed")
+    try:
+        if block.validate(state.committed_utxos, state.blockchain):
+            with state.blockchain_lock:
+                state.blockchain.add(block)
+            with state.committed_utxos_lock:
+                block.update_utxos(state.committed_utxos)
+            with state.utxos_lock:
+                state.utxos = deepcopy(state.committed_utxos)
+            with state.block_lock:
+                state.block = Block()
+            print("block validating succeeded")
+        else:
+            print("block validating failed")
+    except ValueError:
+        blockchains = broadget("/blockchain")
+        longest_blockchain = max(
+            blockchains, key=lambda blockchain: blockchain.length()
+        )
+        if longest_blockchain.length() > state.blockchain.length():
+            validate_blockchain(longest_blockchain)
     return "", HTTPStatus.NO_CONTENT
 
 
@@ -139,12 +173,10 @@ def _():
 if node.address == bootstrap_address:
     state.nodes = {bootstrap_address: node.public_key}
 
-    genesis_transaction = GenesisTransaction(node.public_key)
-    state.block = GenesisBlock()
-    state.block.add(genesis_transaction)
     state.blockchain = Blockchain()
-
-    mine()
+    state.block = GenesisBlock()
+    genesis_transaction = GenesisTransaction(node.public_key)
+    handle_transaction(genesis_transaction)
 else:
     sleep(1)  # FIXME
 
@@ -153,21 +185,8 @@ else:
         state.nodes[node.address] = node.public_key
 
     blockchain = loads(get(f"http://{bootstrap_address}/blockchain").content)
-    for block in blockchain.blocks:
-        if block.validate(state.committed_utxos, blockchain):
-            with state.committed_utxos_lock:
-                block.update_utxos(state.committed_utxos)
-    with state.blockchain_lock:
-        state.blockchain = blockchain
-    with state.utxos_lock:
-        state.utxos = deepcopy(state.committed_utxos)
-    with state.block_lock:
-        state.block = Block()
+    validate_blockchain(blockchain)
 
-    for address in state.nodes:
-        if address != node.address:
-            data = (node.address, node.public_key)
-            post(f"http://{address}/node", data=dumps(data))
-
+    broadpost("/node", (node.address, node.public_key))
 
 app.run(host=node.host, port=node.port, debug=True)
