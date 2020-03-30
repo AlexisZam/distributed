@@ -1,8 +1,11 @@
 from collections import defaultdict
 from threading import Lock
 
-nodes = None
-nodes_lock = Lock()
+addresses = []
+addresses_lock = Lock()
+
+public_keys = {}
+public_keys_lock = Lock()
 
 block = None
 block_lock = Lock()

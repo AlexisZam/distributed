@@ -13,15 +13,12 @@ class REPL(Cmd):
     prompt = ">>> "
 
     def do_transaction(self, arg):
-        # TODO remove defaults
         parser = ArgumentParser(prog="transaction", add_help=False)
-        parser.add_argument(
-            "receiver_address", nargs="?", default="127.0.0.1:5000", type=str
-        )
-        parser.add_argument("amount", nargs="?", default=1, type=int)
+        parser.add_argument("receiver_public_key", type=str)
+        parser.add_argument("amount", type=int)
         args = parser.parse_args(args=arg.split())
 
-        data = {"receiver_address": args.receiver_address, "amount": args.amount}
+        data = {"receiver_public_key": args.receiver_public_key, "amount": args.amount}
         post(f"http://{address}/create_transaction", data=dumps(data))
 
     def do_view(self, _):

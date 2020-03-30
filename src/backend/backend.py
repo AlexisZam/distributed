@@ -3,7 +3,7 @@
 from collections import defaultdict
 from copy import deepcopy
 from flask import Flask, request
-from http import HTTPStatus
+from multiprocessing import Value
 from pickle import dumps, loads
 from requests import get, post
 from threading import Thread
@@ -11,7 +11,7 @@ from time import sleep
 
 from block import Block, GenesisBlock
 from blockchain import Blockchain
-from config import bootstrap_address
+from config import bootstrap_address, n_nodes
 import node
 import state
 from transaction import GenesisTransaction, Transaction
@@ -21,7 +21,8 @@ from transaction import GenesisTransaction, Transaction
 
 
 def broadpost(path, data):
-    for address in state.nodes:
+    # TODO async io
+    for address in state.addresses:
         if address != node.address:
             post(f"http://{address}{path}", data=dumps(data))
 
@@ -29,19 +30,15 @@ def broadpost(path, data):
 def broadget(path):
     return [
         get(f"http://{address}{path}")
-        for address in state.nodes
+        for address in state.addresses
         if address != node.address
     ]
 
 
-def generate_transaction(receiver_address, amount):
+def generate_transaction(receiver_public_key, amount):
     sleep(1)  # FIXME
     transaction = Transaction(
-        node.public_key,
-        node.private_key,
-        state.nodes[receiver_address],
-        amount,
-        state.utxos,
+        node.public_key, node.private_key, receiver_public_key, amount, state.utxos
     )
     broadpost("/validate_transaction", transaction)
     handle_transaction(transaction)
@@ -104,9 +101,46 @@ def balance():
     return dumps(sum(amount for amount in state.utxos[node.public_key].values()))
 
 
-@app.route("/nodes")
-def nodes():
-    return dumps(state.nodes)
+@app.route("/addresses")
+def addresses():
+    return dumps(state.addresses)
+
+
+@app.route("/public_keys")
+def public_keys():
+    return dumps(state.public_keys)
+
+
+@app.route("/address", methods=["POST"])
+def address():
+    address = loads(request.get_data())
+    with state.addresses_lock:
+        state.addresses.append(address)
+    return ""
+
+
+@app.route("/index")  # FIXME
+def index():
+    if node.address != bootstrap_address:
+        return ""
+
+    with counter.get_lock():
+        index = counter.value
+        counter.value += 1
+
+    return dumps(index)
+
+
+@app.route("/public_key", methods=["POST"])
+def login():
+    index, public_key = loads(request.get_data())
+    with state.public_keys_lock:
+        state.public_keys[index] = public_key
+
+    if node.address == bootstrap_address:
+        Thread(target=generate_transaction, args=(public_key, 100)).start()  # FIXME
+
+    return ""
 
 
 @app.route("/blockchain")
@@ -117,8 +151,8 @@ def blockchain():
 @app.route("/create_transaction", methods=["POST"])
 def create_transaction():
     data = loads(request.get_data())
-    generate_transaction(data["receiver_address"], data["amount"])
-    return "", HTTPStatus.NO_CONTENT
+    generate_transaction(data["receiver_public_key"], data["amount"])
+    return ""
 
 
 @app.route("/validate_transaction", methods=["POST"])
@@ -129,7 +163,7 @@ def validate_transaction():
         print("transaction validating succeeded")
     else:
         print("transaction validating failed")
-    return "", HTTPStatus.NO_CONTENT
+    return ""
 
 
 @app.route("/validate_block", methods=["POST"])
@@ -155,23 +189,15 @@ def validate_block():
         )
         if longest_blockchain.length() > state.blockchain.length():
             validate_blockchain(longest_blockchain)
-    return "", HTTPStatus.NO_CONTENT
-
-
-@app.route("/node", methods=["POST"])
-def _():
-    address, public_key = loads(request.get_data())
-    with state.nodes_lock:
-        state.nodes[address] = public_key
-
-    if node.address == bootstrap_address:
-        Thread(target=generate_transaction, args=(address, 100)).start()
-
-    return "", HTTPStatus.NO_CONTENT
+    return ""
 
 
 if node.address == bootstrap_address:
-    state.nodes = {bootstrap_address: node.public_key}
+    counter = Value("i", 0)
+    index = index()
+    state.public_keys[index] = node.public_key
+
+    state.addresses = [node.address]
 
     state.blockchain = Blockchain()
     state.block = GenesisBlock()
@@ -180,13 +206,22 @@ if node.address == bootstrap_address:
 else:
     sleep(1)  # FIXME
 
-    state.nodes = loads(get(f"http://{bootstrap_address}/nodes").content)
-    with state.nodes_lock:
-        state.nodes[node.address] = node.public_key
+    addresses = loads(get(f"http://{bootstrap_address}/addresses").content)
+    addresses.append(node.address)
+    with state.addresses_lock:
+        state.addresses = addresses
+    broadpost("/address", node.address)
 
     blockchain = loads(get(f"http://{bootstrap_address}/blockchain").content)
     validate_blockchain(blockchain)
 
-    broadpost("/node", (node.address, node.public_key))
+    index = loads(get(f"http://{bootstrap_address}/index").content)
+
+    public_keys = loads(get(f"http://{bootstrap_address}/public_keys").content)
+    public_keys[index] = node.public_key
+    with state.public_keys_lock:
+        state.public_keys = public_keys
+    broadpost("/public_key", (index, node.public_key))
+
 
 app.run(host=node.host, port=node.port, debug=True)
