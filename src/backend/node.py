@@ -11,3 +11,4 @@ _args = _parser.parse_args()
 host = _args.host
 port = _args.port
 address = f"{host}:{port}"
+index = None

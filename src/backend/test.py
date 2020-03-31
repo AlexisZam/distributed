@@ -22,9 +22,14 @@ while True:
         break
     sleep(1)
 
-print(public_keys)
-# for line in stdin:
-#     index, amount = line.split()
-#     index = int(index[2:])
-#     data = {"receiver_public_key": public_keys[index], "amount": int(amount)}
-#     post(f"http://{address}/create_transaction", data=dumps(data))
+index = loads(get(f"http://{address}/index").content)
+
+with open(f"../../transactions/{n_nodes}nodes/transactions{index}.txt") as f:
+    for line in f:
+        index, amount = line.split()
+        index = int(index[2:])
+        data = {"receiver_public_key": public_keys[index], "amount": int(amount)}
+        post(f"http://{address}/create_transaction", data=dumps(data))
+
+balance = loads(get(f"http://{address}/balance").content)
+print(balance)

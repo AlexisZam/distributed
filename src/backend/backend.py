@@ -106,6 +106,11 @@ def addresses():
     return dumps(state.addresses)
 
 
+@app.route("/index")
+def index():
+    return dumps(node.index)
+
+
 @app.route("/public_keys")
 def public_keys():
     return dumps(state.public_keys)
@@ -121,8 +126,8 @@ def blockchain_length():
     return dumps(len(state.blockchain))
 
 
-@app.route("/index")  # FIXME
-def index():
+@app.route("/login")  # FIXME
+def login():
     if node.address != bootstrap_address:
         return ""
 
@@ -149,7 +154,7 @@ def transaction():
 
 
 @app.route("/public_key", methods=["POST"])
-def login():
+def public_key():
     index, public_key = loads(request.get_data())
     with state.public_keys_lock:
         state.public_keys[index] = public_key
@@ -200,7 +205,7 @@ def validate_block():
 if node.address == bootstrap_address:
     counter = Value("i", 0)
     with counter.get_lock():
-        index = counter.value
+        node.index = counter.value
         counter.value += 1
     state.public_keys[index] = node.public_key
 
@@ -223,13 +228,13 @@ else:
     blockchain = loads(get(f"http://{bootstrap_address}/blockchain").content)
     validate_blockchain(blockchain)
 
-    index = loads(get(f"http://{bootstrap_address}/index").content)
+    node.index = loads(get(f"http://{bootstrap_address}/login").content)
 
     public_keys = loads(get(f"http://{bootstrap_address}/public_keys").content)
-    public_keys[index] = node.public_key
+    public_keys[node.index] = node.public_key
     with state.public_keys_lock:
         state.public_keys = public_keys
-    broadpost("/public_key", (index, node.public_key))
+    broadpost("/public_key", (node.index, node.public_key))
 
 
 app.run(host=node.host, port=node.port)
