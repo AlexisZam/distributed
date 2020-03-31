@@ -29,7 +29,7 @@ def broadpost(path, data):
 
 def broadget(path):
     return [
-        loads(get(f"http://{address}{path}"))
+        loads(get(f"http://{address}{path}").content, address)
         for address in state.addresses
         if address != node.address
     ]
@@ -193,12 +193,13 @@ def validate_block():
         else:
             print("block validating failed")
     except ValueError:
-        blockchains = broadget("/blockchain/length")
-        longest_blockchain = max(
-            blockchains, key=lambda blockchain: blockchain.length()
-        )
-        if longest_blockchain.length() > state.blockchain.length():
-            validate_blockchain(longest_blockchain)
+        while True:
+            length, address = max(broadget("/blockchain/length"))
+            blockchain = loads(get(f"http://{address}/blockchain").content)
+            if length == blockchain.length():
+                break
+        if length > state.blockchain.length():
+            validate_blockchain(blockchain)
     return ""
 
 

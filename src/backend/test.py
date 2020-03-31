@@ -33,5 +33,7 @@ with open(
         data = {"receiver_public_key": public_keys[index], "amount": int(amount)}
         post(f"http://{address}/transaction", data=dumps(data))
 
+sleep(5)
+
 balance = loads(get(f"http://{address}/balance").content)
 print(balance)
