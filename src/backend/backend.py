@@ -207,7 +207,7 @@ if node.address == bootstrap_address:
     with counter.get_lock():
         node.index = counter.value
         counter.value += 1
-    state.public_keys[index] = node.public_key
+    state.public_keys[node.index] = node.public_key
 
     state.addresses = [node.address]
 
