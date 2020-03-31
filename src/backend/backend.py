@@ -230,4 +230,4 @@ else:
     broadpost("/public_key", (index, node.public_key))
 
 
-app.run(host=node.host, port=node.port, debug=True)
+app.run(host=node.host, port=node.port)
