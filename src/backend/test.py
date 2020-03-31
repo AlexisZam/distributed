@@ -31,8 +31,7 @@ with open(
         index, amount = line.split()
         index = int(index[2:])
         data = {"receiver_public_key": public_keys[index], "amount": int(amount)}
-        print(data)
-        post(f"http://{address}/create_transaction", data=dumps(data))
+        post(f"http://{address}/transaction", data=dumps(data))
 
 balance = loads(get(f"http://{address}/balance").content)
 print(balance)
