@@ -111,12 +111,14 @@ def public_keys():
     return dumps(state.public_keys)
 
 
-@app.route("/address", methods=["POST"])
-def address():
-    address = loads(request.get_data())
-    with state.addresses_lock:
-        state.addresses.append(address)
-    return ""
+@app.route("/blockchain")
+def blockchain():
+    return dumps(state.blockchain)
+
+
+@app.route("/blockchain/length")
+def blockchain_length():
+    return dumps(len(state.blockchain))
 
 
 @app.route("/index")  # FIXME
@@ -131,27 +133,30 @@ def index():
     return dumps(index)
 
 
+@app.route("/address", methods=["POST"])
+def address():
+    address = loads(request.get_data())
+    with state.addresses_lock:
+        state.addresses.append(address)
+    return ""
+
+
+@app.route("/transaction", methods=["POST"])
+def transaction():
+    data = loads(request.get_data())
+    generate_transaction(data["receiver_public_key"], data["amount"])
+    return ""
+
+
 @app.route("/public_key", methods=["POST"])
 def login():
     index, public_key = loads(request.get_data())
     with state.public_keys_lock:
         state.public_keys[index] = public_key
 
-    if node.address == bootstrap_address:
-        Thread(target=generate_transaction, args=(public_key, 100)).start()  # FIXME
+    if node.address == bootstrap_address:  # FIXME
+        Thread(target=generate_transaction, args=(public_key, 100)).start()
 
-    return ""
-
-
-@app.route("/blockchain")
-def blockchain():
-    return dumps(state.blockchain)
-
-
-@app.route("/create_transaction", methods=["POST"])
-def create_transaction():
-    data = loads(request.get_data())
-    generate_transaction(data["receiver_public_key"], data["amount"])
     return ""
 
 
@@ -183,7 +188,7 @@ def validate_block():
         else:
             print("block validating failed")
     except ValueError:
-        blockchains = broadget("/blockchain")
+        blockchains = broadget("/blockchain/length")
         longest_blockchain = max(
             blockchains, key=lambda blockchain: blockchain.length()
         )
@@ -204,9 +209,9 @@ if node.address == bootstrap_address:
     genesis_transaction = GenesisTransaction(node.public_key)
     handle_transaction(genesis_transaction)
 else:
-    sleep(1)  # FIXME
-
-    addresses = loads(get(f"http://{bootstrap_address}/addresses").content)
+    addresses = loads(
+        get(f"http://{bootstrap_address}/addresses", timeout=None).content
+    )  # FIXME
     addresses.append(node.address)
     with state.addresses_lock:
         state.addresses = addresses

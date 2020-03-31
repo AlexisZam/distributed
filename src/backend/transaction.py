@@ -10,7 +10,7 @@ class Transaction:
     def __init__(
         self, sender_public_key, sender_private_key, receiver_public_key, amount, utxos
     ):
-        if sender_public_key == receiver_public_key or amount == 0:
+        if sender_public_key == receiver_public_key or amount <= 0:
             raise ValueError
 
         self.sender_public_key = sender_public_key

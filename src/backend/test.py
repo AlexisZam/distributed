@@ -4,6 +4,7 @@ from argparse import ArgumentParser
 from pickle import dumps, loads
 from requests import get, post
 from sys import stdin
+from time import sleep
 
 from config import n_nodes
 
@@ -19,6 +20,7 @@ while True:
     public_keys = loads(get(f"http://{address}/public_keys").content)
     if len(public_keys) == n_nodes:
         break
+    sleep(1)
 
 for line in stdin:
     index, amount = line.split()

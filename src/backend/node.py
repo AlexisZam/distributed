@@ -1,9 +1,7 @@
 from argparse import ArgumentParser
 from Crypto.PublicKey import RSA
 
-_bits = 2048
-
-private_key = RSA.generate(_bits)
+private_key = RSA.generate(2048)
 public_key = private_key.publickey().exportKey()
 
 _parser = ArgumentParser(add_help=False)
