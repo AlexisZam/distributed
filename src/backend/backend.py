@@ -29,7 +29,7 @@ def broadpost(path, data):
 
 def broadget(path):
     return [
-        get(f"http://{address}{path}")
+        loads(get(f"http://{address}{path}"))
         for address in state.addresses
         if address != node.address
     ]
@@ -199,7 +199,9 @@ def validate_block():
 
 if node.address == bootstrap_address:
     counter = Value("i", 0)
-    index = index()
+    with counter.get_lock():
+        index = counter.value
+        counter.value += 1
     state.public_keys[index] = node.public_key
 
     state.addresses = [node.address]
