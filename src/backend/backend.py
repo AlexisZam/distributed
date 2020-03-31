@@ -209,6 +209,7 @@ if node.address == bootstrap_address:
     genesis_transaction = GenesisTransaction(node.public_key)
     handle_transaction(genesis_transaction)
 else:
+    sleep(3)
     addresses = loads(
         get(f"http://{bootstrap_address}/addresses", timeout=None).content
     )  # FIXME
