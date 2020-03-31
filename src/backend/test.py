@@ -24,7 +24,9 @@ while True:
 
 index = loads(get(f"http://{address}/index").content)
 
-with open(f"../../transactions/{n_nodes}nodes/transactions{index}.txt") as f:
+with open(
+    f"/home/user/distributed/transactions/{n_nodes}nodes/transactions{index}.txt"
+) as f:
     for line in f:
         index, amount = line.split()
         index = int(index[2:])
