@@ -22,8 +22,9 @@ while True:
         break
     sleep(1)
 
-for line in stdin:
-    index, amount = line.split()
-    index = int(index[2:])
-    data = {"receiver_public_key": public_keys[index], "amount": int(amount)}
-    post(f"http://{address}/create_transaction", data=dumps(data))
+print(public_keys)
+# for line in stdin:
+#     index, amount = line.split()
+#     index = int(index[2:])
+#     data = {"receiver_public_key": public_keys[index], "amount": int(amount)}
+#     post(f"http://{address}/create_transaction", data=dumps(data))
