@@ -1,5 +1,5 @@
 from argparse import ArgumentParser
-from Crypto.PublicKey import RSA
+from Cryptodome.PublicKey import RSA
 
 private_key = RSA.generate(2048)
 public_key = private_key.publickey().exportKey()

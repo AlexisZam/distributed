@@ -1,5 +1,5 @@
 from copy import deepcopy
-from Crypto.Hash import SHA512
+from Cryptodome.Hash import SHA512
 from pickle import dumps
 from random import random
 from threading import Event

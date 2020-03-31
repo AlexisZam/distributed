@@ -1,6 +1,6 @@
-from Crypto.Hash import SHA512
-from Crypto.PublicKey import RSA
-from Crypto.Signature import PKCS1_v1_5
+from Cryptodome.Hash import SHA512
+from Cryptodome.PublicKey import RSA
+from Cryptodome.Signature import PKCS1_v1_5
 from pickle import dumps
 
 from config import n_nodes
