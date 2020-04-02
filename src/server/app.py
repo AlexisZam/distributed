@@ -12,7 +12,7 @@ from requests import get, post
 import metrics
 import node
 import state
-from config import BOOTSTRAP_ADDRESS, N_NODES
+from config import BOOTSTRAP_ADDRESS, HOST, N_NODES, PORT
 from transaction import Transaction
 
 app = Flask(__name__)
@@ -123,4 +123,4 @@ def block_validate():
     return ""
 
 
-app.run(host=node.host, port=node.port)
+app.run(host=HOST, port=PORT)

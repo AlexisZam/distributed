@@ -10,7 +10,7 @@ from requests import get
 
 import node
 import state
-from config import BLOCK_CAPACITY, DIFFICULTY
+from config import CAPACITY, DIFFICULTY
 from transaction import GenesisTransaction
 from utils import broadcast
 
@@ -25,7 +25,7 @@ class Block:
 
     def add(self, transaction):
         self.transactions.append(transaction)
-        if len(self.transactions) == BLOCK_CAPACITY:
+        if len(self.transactions) == CAPACITY:
             with state.blockchain_lock:
                 self.previous_hash = state.blockchain.top().current_hash
                 self.index = state.blockchain.length()
