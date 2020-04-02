@@ -35,7 +35,7 @@ class Transaction:
 
             h = self.__hash()
             self.id = h.hexdigest()
-            self.signature = PKCS1_v1_5.new(node.private_key).sign(h)
+            self.signature = PKCS1_v1_5.new(node.private_key).sign(h)  # TODO pio kato
 
             self.outputs = {"receiver": amount}
             if utxo_amount != amount:
@@ -66,12 +66,11 @@ class Transaction:
             print("Transaction validated")
 
     def __modify_state(self, utxos, utxos_lock, validate_block=False):
-        with utxos_lock:
-            for tx_id in self.input:
-                del utxos[self.sender_public_key][tx_id]
-            utxos[self.receiver_public_key][self.id] = self.outputs["receiver"]
-            if "sender" in self.outputs:
-                utxos[self.sender_public_key][self.id] = self.outputs["sender"]
+        for tx_id in self.input:
+            del utxos[self.sender_public_key][tx_id]
+        utxos[self.receiver_public_key][self.id] = self.outputs["receiver"]
+        if "sender" in self.outputs:
+            utxos[self.sender_public_key][self.id] = self.outputs["sender"]
         if not validate_block:
             with state.block_lock:
                 state.block.add(self)

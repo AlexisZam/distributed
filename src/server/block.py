@@ -35,7 +35,7 @@ class Block:
                 if block_validated.is_set():
                     mining.clear()
                     block_validated.clear()
-                    raise Exception
+                    raise Exception("Block creation failed")
                 self.nonce = random()
                 self.current_hash = self.__hash().hexdigest()
                 if int(self.current_hash[:DIFFICULTY], base=16) == 0:
@@ -75,7 +75,7 @@ class Block:
 
         temp_utxos = deepcopy(utxos)  # FIXME should this be first?
         for transaction in self.transactions:
-            transaction.validate(temp_utxos)
+            transaction.validate(temp_utxos, validate_block=True)
 
         if mining.is_set():
             block_validated.set()
