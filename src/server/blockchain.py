@@ -26,7 +26,7 @@ class Blockchain:
     def validate(self):
         for block in self.blocks:
             if block.previous_hash != self.blocks[block.index - 1].current_hash:
-                raise Exception
+                raise Exception("invalid blockchain")
 
         utxos = defaultdict(dict)
         for block in self.blocks:

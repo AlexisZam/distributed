@@ -35,7 +35,7 @@ class Block:
                 if block_validated.is_set():
                     mining.clear()
                     block_validated.clear()
-                    raise Exception("Block creation failed")
+                    return
                 self.nonce = random()
                 self.current_hash = self.__hash().hexdigest()
                 if int(self.current_hash[:DIFFICULTY], base=16) == 0:
@@ -60,7 +60,7 @@ class Block:
         self, utxos, utxos_lock=nullcontext(), validate_blockchain=False
     ):  # FIXME
         if int(self.__hash().hexdigest()[:DIFFICULTY], base=16) != 0:
-            raise Exception
+            raise Exception("invalid hash")
 
         try:
             with state.blockchain_lock:
@@ -68,7 +68,7 @@ class Block:
                     not validate_blockchain
                     and self.previous_hash != state.blockchain.top().current_hash
                 ):
-                    raise Exception
+                    raise Exception("conflict")
         except:
             Block.__resolve_conflict()  # FIXME this should be at validate blockchain
             return
@@ -92,12 +92,8 @@ class Block:
                 transactions = deepcopy(state.block.transactions)
                 state.block = Block()
                 # FIXME why is this (and the following lines) locked?
-                print(transactions)
-                print(self.transactions)
                 for transaction in transactions:
-                    # TODO maybe define __eq__
                     if transaction not in self.transactions:
-                        print(transaction)
                         transaction.validate(state.utxos, state.utxos_lock)
             # FIXME maybe nested locking
 
@@ -126,14 +122,12 @@ class Block:
             ]
             max_length, address = max(blockchain_lengths_addresses)
             blockchain = loads(get(f"http://{address}/blockchain").content)
-            print("RESOLVING CONFLICT")
             if max_length <= blockchain.length():
                 with state.blockchain_lock:
                     if max_length < state.blockchain.length():
                         break  # FIXME might go on forever
                 blockchain.validate()  # TODO try catch this
                 break
-        print("CONFLICT RESOLVED")
 
 
 class GenesisBlock(Block):

@@ -15,9 +15,9 @@ from utils import broadcast
 class Transaction:
     def __init__(self, receiver_public_key, amount):
         if receiver_public_key == node.public_key:
-            raise ValueError("receiver_public_key")
+            raise ValueError("invalid receiver_public_key")
         if amount <= 0:
-            raise ValueError("amount")
+            raise ValueError("invalid amount")
 
         self.sender_public_key = node.public_key
         self.receiver_public_key = receiver_public_key
@@ -31,7 +31,7 @@ class Transaction:
                 utxo_amount += tx_amount
                 self.input.append(tx_id)
             if utxo_amount < amount:
-                raise ValueError("amount")
+                raise ValueError("insufficient amount")
 
             h = self.__hash()
             self.id = h.hexdigest()
@@ -48,17 +48,23 @@ class Transaction:
 
         print("Transaction created")
 
+    def __eq__(self, other):
+        return self.id == other.id
+
     def validate(self, utxos, utxos_lock=nullcontext(), validate_block=False):
-        if self.sender_public_key == self.receiver_public_key or not PKCS1_v1_5.new(
-            RSA.importKey(self.sender_public_key)
-        ).verify(self.__hash(), self.signature):
-            raise Exception
+        if self.sender_public_key == self.receiver_public_key:
+            raise Exception("sender == receiver")
+
+        if not PKCS1_v1_5.new(RSA.importKey(self.sender_public_key)).verify(
+            self.__hash(), self.signature
+        ):
+            raise Exception("invalid signature")
 
         with utxos_lock:
             if sum(utxos[self.sender_public_key][tx_id] for tx_id in self.input) != sum(
                 self.outputs.values()
             ):
-                raise Exception
+                raise Exception("amount != sum of outputs")
 
             # side effects
             self.__modify_state(utxos, utxos_lock, validate_block)
