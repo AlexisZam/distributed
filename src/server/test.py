@@ -19,7 +19,7 @@ public_keys = loads(get(f"http://{address}/public_keys").content)
 index = loads(get(f"http://{address}/index").content)
 
 with open(
-    f"/home/user/distributed/transactions/{N_NODES}nodes/transactions{index}.txt"
+    f"/home/alexiszam/Workspace/distributed/transactions/{N_NODES}nodes/transactions{index}.txt"
 ) as f:
     for line in f:
         index, amount = map(int, line[2:].split())

@@ -2,7 +2,7 @@ from contextlib import nullcontext
 from copy import deepcopy
 from pickle import dumps, loads
 from random import random
-from threading import Event, Lock
+from threading import Event
 from time import time
 
 from Cryptodome.Hash import SHA512
@@ -26,8 +26,9 @@ class Block:
     def add(self, transaction):
         self.transactions.append(transaction)
         if len(self.transactions) == BLOCK_CAPACITY:
-            self.previous_hash = state.blockchain.top().current_hash
-            self.index = state.blockchain.length()
+            with state.blockchain_lock:
+                self.previous_hash = state.blockchain.top().current_hash
+                self.index = state.blockchain.length()
 
             mining.set()
             while True:
@@ -46,8 +47,12 @@ class Block:
             # side effects
             with state.blockchain_lock:
                 state.blockchain.add(self)
+            with state.utxos_lock:
+                with state.committed_utxos_lock:
+                    state.committed_utxos = deepcopy(state.utxos)
             with state.block_lock:
                 state.block = Block()
+            # FIXME maybe nested locking
 
             print("Block created")
 
@@ -57,35 +62,46 @@ class Block:
         if int(self.__hash().hexdigest()[:DIFFICULTY], base=16) != 0:
             raise Exception
 
-        with utxos_lock:
-            if (
-                not validate_blockchain
-                and self.previous_hash != state.blockchain.top().current_hash
-            ):
-                Block.__resolve_conflict()  # FIXME this should be at validate blockchain
+        try:
+            with state.blockchain_lock:
+                if (
+                    not validate_blockchain
+                    and self.previous_hash != state.blockchain.top().current_hash
+                ):
+                    raise Exception
+        except:
+            Block.__resolve_conflict()  # FIXME this should be at validate blockchain
+            return
 
-            temp_utxos = deepcopy(utxos)  # FIXME should this be first?
-            for transaction in self.transactions:
-                transaction.validate(temp_utxos)
+        temp_utxos = deepcopy(utxos)  # FIXME should this be first?
+        for transaction in self.transactions:
+            transaction.validate(temp_utxos)
 
-            if mining.is_set():
-                block_validated.set()
+        if mining.is_set():
+            block_validated.set()
 
-            # side effects
-            if not validate_blockchain:
-                with state.blockchain_lock:
-                    state.blockchain.add(self)
-                with state.utxos_lock:
-                    state.utxos = deepcopy(temp_utxos)
-                with state.committed_utxos_lock:
-                    state.committed_utxos = temp_utxos
-                with state.block_lock:
-                    transactions = deepcopy(state.block.transactions)
-                    state.block = Block()
-                    for transaction in transactions:
-                        # TODO maybe define __eq__
-                        if transaction not in self.transactions:
-                            transaction.validate(state.utxos, state.utxos_lock)
+        # side effects
+        if not validate_blockchain:
+            with state.blockchain_lock:
+                state.blockchain.add(self)
+            with state.utxos_lock:
+                state.utxos = deepcopy(temp_utxos)
+            with state.committed_utxos_lock:
+                state.committed_utxos = temp_utxos
+            with state.block_lock:
+                transactions = deepcopy(state.block.transactions)
+                state.block = Block()
+                # FIXME why is this (and the following lines) locked?
+                print(transactions)
+                print(self.transactions)
+                for transaction in transactions:
+                    # TODO maybe define __eq__
+                    if transaction not in self.transactions:
+                        print(transaction)
+                        transaction.validate(state.utxos, state.utxos_lock)
+            # FIXME maybe nested locking
+
+        block_validated.clear()
 
         print("Block validated")
 
@@ -108,12 +124,16 @@ class Block:
                 for address in node.addresses
                 if address != node.address
             ]
-            length, address = max(blockchain_lengths_addresses)
+            max_length, address = max(blockchain_lengths_addresses)
             blockchain = loads(get(f"http://{address}/blockchain").content)
-            if length <= blockchain.length():
-                if length > state.blockchain.length():
-                    blockchain.validate()  # TODO try catch this
-                break  # FIXME might go on forever
+            print("RESOLVING CONFLICT")
+            if max_length <= blockchain.length():
+                with state.blockchain_lock:
+                    if max_length < state.blockchain.length():
+                        break  # FIXME might go on forever
+                blockchain.validate()  # TODO try catch this
+                break
+        print("CONFLICT RESOLVED")
 
 
 class GenesisBlock(Block):

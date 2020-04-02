@@ -22,9 +22,9 @@ class Transaction:
         self.sender_public_key = node.public_key
         self.receiver_public_key = receiver_public_key
 
-        utxo_amount = 0
-        self.input = []
         with state.utxos_lock:
+            utxo_amount = 0
+            self.input = []
             for tx_id, tx_amount in state.utxos[self.sender_public_key].items():
                 if utxo_amount >= amount:
                     break

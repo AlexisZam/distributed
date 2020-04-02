@@ -1,6 +1,5 @@
 from collections import defaultdict
 from copy import deepcopy
-from threading import Lock
 from time import time
 
 import metrics
@@ -42,6 +41,7 @@ class Blockchain:
             state.committed_utxos = utxos
         with state.block_lock:
             state.block = Block()
+        # FIXME maybe nested locking
 
         print("Blockchain validated")
 

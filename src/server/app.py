@@ -59,7 +59,8 @@ def public_keys():
 
 @app.route("/balance")
 def balance():
-    return dumps(sum(amount for amount in state.utxos[node.public_key].values()))
+    with state.utxos_lock:
+        return dumps(sum(state.utxos[node.public_key].values()))
 
 
 @app.route("/blockchain")
