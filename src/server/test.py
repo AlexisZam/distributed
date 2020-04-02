@@ -7,12 +7,12 @@ from requests import get, post
 
 from config import N_NODES
 
-_parser = ArgumentParser(add_help=False)
-_parser.add_argument("-h", "--host", type=str)
-_parser.add_argument("-p", "--port", type=int)
-_args = _parser.parse_args()
-host = _args.host
-port = _args.port
+parser = ArgumentParser(add_help=False)
+parser.add_argument("-h", "--host", type=str)
+parser.add_argument("-p", "--port", type=int)
+args = parser.parse_args()
+host = args.host
+port = args.port
 address = f"{host}:{port}"
 
 public_keys = loads(get(f"http://{address}/public_keys").content)
@@ -24,6 +24,9 @@ with open(
     for line in f:
         index, amount = map(int, line[2:].split())
         post(f"http://{address}/transaction", data=dumps((public_keys[index], amount)))
+
+average_block_time = loads(get(f"http://{address}/average_block_time").content)
+print(average_block_time)
 
 balance = loads(get(f"http://{address}/balance").content)
 print(balance)

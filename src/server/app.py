@@ -49,18 +49,17 @@ def public_key(index):
     return dumps(node.public_keys[int(index)])
 
 
+@app.route("/public_keys")
+def public_keys():
+    return dumps(node.public_keys)
+
+
 # Get state
 
 
 @app.route("/balance")
 def balance():
     return dumps(sum(amount for amount in state.utxos[node.public_key].values()))
-
-
-@app.route("/public_keys")
-def public_keys():
-    with node.public_keys_lock:
-        return dumps(node.public_keys)
 
 
 @app.route("/blockchain")

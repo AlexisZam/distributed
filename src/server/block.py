@@ -58,15 +58,15 @@ class Block:
             raise Exception
 
         with utxos_lock:
-            temp_utxos = deepcopy(utxos)
-            for transaction in self.transactions:
-                transaction.validate(temp_utxos)
-
             if (
                 not validate_blockchain
                 and self.previous_hash != state.blockchain.top().current_hash
             ):
                 Block.__resolve_conflict()  # FIXME this should be at validate blockchain
+
+            temp_utxos = deepcopy(utxos)  # FIXME should this be first?
+            for transaction in self.transactions:
+                transaction.validate(temp_utxos)
 
             if mining.is_set():
                 block_validated.set()
