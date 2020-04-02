@@ -14,13 +14,16 @@ class REPL(Cmd):
 
     def do_transaction(self, arg):
         parser = ArgumentParser(prog="transaction", add_help=False)
-        parser.add_argument("receiver_public_key", type=str)
+        parser.add_argument("index", type=int)
         parser.add_argument("amount", type=int)
         args = parser.parse_args(args=arg.split())
 
+        receiver_public_key = loads(
+            get(f"http://{address}/nodes/{args.index}/public_key").content
+        )
         post(
             f"http://{address}/transaction",
-            data=dumps((args.receiver_public_key, args.amount)),
+            data=dumps((receiver_public_key, args.amount)),
         )
 
     def do_view(self, _):
@@ -41,6 +44,12 @@ class REPL(Cmd):
             "help",
             sep="\n",
         )
+
+    # FIXME remove from here onwards
+
+    def do_index(self, _):
+        index = loads(get(f"http://{address}/index").content)
+        print(index)
 
 
 parser = ArgumentParser(add_help=False)

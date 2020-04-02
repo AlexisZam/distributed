@@ -44,6 +44,11 @@ def index():
     return dumps(node.index)
 
 
+@app.route("/nodes/<index>/public_key")
+def public_key(index):
+    return dumps(node.public_keys[int(index)])
+
+
 # Get state
 
 
