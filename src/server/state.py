@@ -5,11 +5,12 @@ from threading import RLock, Thread  # FIXME
 from requests import get, post
 
 import node
+from block import Block
 from blockchain import Blockchain
 from config import BOOTSTRAP_ADDRESS
 
 block_lock = RLock()
-block = None  # FIXME
+block = Block()  # FIXME
 
 utxos_lock = RLock()
 utxos = defaultdict(dict)

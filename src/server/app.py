@@ -64,14 +64,14 @@ def balance():
 
 @app.route("/blockchain")
 def blockchain():
-    with state.blockchain_lock:
-        return dumps(state.blockchain)
+    # with state.blockchain_lock:
+    return dumps(state.blockchain)
 
 
 @app.route("/blockchain/length")
 def blockchain_length():
-    with state.blockchain_lock:
-        return dumps(state.blockchain.length())
+    # with state.blockchain_lock:
+    return dumps(state.blockchain.length())
 
 
 @app.route("/blockchain/top/transactions")

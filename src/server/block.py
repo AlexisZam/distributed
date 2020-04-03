@@ -32,75 +32,77 @@ class Block:
                 self.previous_hash = state.blockchain.blocks[-1].current_hash
                 self.index = state.blockchain.length()
 
-            self.timestamp = time()
-            while True:
-                if block_validated.is_set():
-                    print("Block creation failed")
-                    return
-                self.nonce = random()
-                self.current_hash = self.hash().hexdigest()
-                if int(self.current_hash[:DIFFICULTY], base=16) == 0:
-                    # metrics
-                    metrics.average_block_time.add(time() - self.timestamp)
-                    break
+                self.timestamp = time()
+                while True:
+                    if block_validated.is_set():
+                        print("Block creation failed")
+                        return
+                    self.nonce = random()
+                    self.current_hash = self.hash().hexdigest()
+                    if int(self.current_hash[:DIFFICULTY], base=16) == 0:
+                        # metrics
+                        metrics.average_block_time.add(time() - self.timestamp)
+                        break
 
-            broadcast("/block/validate", self)
+                broadcast("/block/validate", self)
 
-            # side effects
-            with state.blockchain_lock:
+                # side effects
                 state.blockchain.add(self)
-            with state.utxos_lock:
-                with state.committed_utxos_lock:
-                    state.committed_utxos = deepcopy(state.utxos)
-            with state.block_lock:
+                with state.utxos_lock:  # TODO this is unnecessary
+                    with state.committed_utxos_lock:
+                        state.committed_utxos = deepcopy(state.utxos)
                 state.block = Block()
-            # FIXME maybe nested locking
+                # FIXME maybe nested locking
 
             print("Block created")
 
     def validate(self):  # FIXME
         print("Validating block")
 
-        if int(self.hash().hexdigest()[:DIFFICULTY], base=16) != 0:
-            raise Exception("invalid hash")
+        if len(self.transactions) != CAPACITY:
+            raise Exception("invalid capacity")
+        h = self.hash().hexdigest()
+        if h != self.current_hash:
+            raise Exception("invalid block hash")
+        if int(h[:DIFFICULTY], base=16) != 0:
+            raise Exception("invalid proof of work")
+
+        block_validated.set()
 
         with state.blockchain_lock:
             if self.previous_hash != state.blockchain.blocks[-1].current_hash:
+                print("Block validation failed")
                 if self.previous_hash in [
                     block.current_hash for block in state.blockchain.blocks[:-1]
                 ]:
                     print("block from shorter (or equal) blockchain")
-                    print("Block validation failed")
                     return
-                Block.__resolve_conflict()  # FIXME this should be at validate blockchain
-                print("Block validation failed")
+                with state.block_lock:  # FIXME why here?
+                    Block.__resolve_conflict()  # FIXME this should be at validate blockchain
                 return
 
-        with state.committed_utxos_lock:
-            utxos = deepcopy(state.committed_utxos)  # FIXME should this be first?
-            for transaction in self.transactions:
-                transaction.validate(utxos, validate_block=True)
-            assert utxos != state.committed_utxos
+            with state.committed_utxos_lock:
+                utxos = deepcopy(state.committed_utxos)  # FIXME should this be first?
+                for transaction in self.transactions:
+                    transaction.validate(utxos, validate_block=True)
+                assert utxos != state.committed_utxos
 
-            block_validated.set()
-
-            # side effects
-            with state.blockchain_lock:
+                # side effects
                 state.blockchain.add(self)
-            state.committed_utxos = utxos
-            with state.utxos_lock:
-                state.utxos = deepcopy(utxos)
-                assert state.utxos == state.committed_utxos
-            with state.block_lock:
-                transactions = deepcopy(state.block.transactions)
-                state.block = Block()
-                # FIXME why is this (and the following lines) locked?
-                for transaction in transactions:
-                    if transaction not in self.transactions:
-                        transaction.validate(state.utxos, state.utxos_lock)
-            # FIXME maybe nested locking
+                state.committed_utxos = utxos
+                with state.utxos_lock:
+                    state.utxos = deepcopy(utxos)
+                    assert state.utxos == state.committed_utxos
 
-            block_validated.clear()
+        block_validated.clear()
+
+        with state.block_lock:
+            transactions = deepcopy(state.block.transactions)
+            state.block = Block()
+            # FIXME why is this (and the following lines) locked?
+            for transaction in transactions:
+                if transaction not in self.transactions:
+                    transaction.validate(state.utxos, state.utxos_lock)
 
         print("Block validated")
 
@@ -127,11 +129,10 @@ class Block:
             max_length, address = max(blockchain_lengths_addresses)
             blockchain = loads(get(f"http://{address}/blockchain").content)
             if max_length <= blockchain.length():
-                with state.blockchain_lock:
-                    if max_length < state.blockchain.length():
-                        break  # FIXME might go on forever
-                blockchain.validate()  # TODO try catch this
-                break
+                print("peordoulis")
+                if max_length >= state.blockchain.length():
+                    blockchain.validate()  # TODO try catch this
+                break  # FIXME might go on forever
         print("Conflict resolved")
 
 

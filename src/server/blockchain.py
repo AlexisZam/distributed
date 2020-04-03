@@ -42,13 +42,23 @@ class Blockchain:
         # side effects
         with state.blockchain_lock:
             state.blockchain = self
-        with state.utxos_lock:
-            state.utxos = deepcopy(utxos)
-        with state.committed_utxos_lock:
-            state.committed_utxos = utxos
+            with state.utxos_lock:
+                state.utxos = deepcopy(utxos)
+                with state.committed_utxos_lock:
+                    state.committed_utxos = utxos
         assert state.utxos == state.committed_utxos
+
         with state.block_lock:
+            transactions = deepcopy(state.block.transactions)
             state.block = Block()
+            # FIXME why is this (and the following lines) locked?
+            for transaction in transactions:
+                if transaction not in [
+                    transaction
+                    for block in self.blocks
+                    for transaction in block.transactions
+                ]:
+                    transaction.validate(state.utxos, state.utxos_lock)
         # FIXME maybe nested locking
 
         print("Blockchain validated")

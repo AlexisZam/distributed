@@ -51,7 +51,7 @@ class Transaction:
             if "sender" in self.outputs:
                 state.utxos[self.sender_public_key][self.id] = self.outputs["sender"]
 
-        print("Transaction created")
+            print("Transaction created")
 
         with state.block_lock:
             state.block.add(self)
@@ -108,7 +108,8 @@ class GenesisTransaction(Transaction):
         self.outputs = {"receiver": 100 * N_NODES}
 
         # side effects
-        self.__modify_state(state.utxos, state.utxos_lock)
+        with state.utxos_lock:
+            state.utxos[self.receiver_public_key][self.id] = self.outputs["receiver"]
 
         print("Transaction created")
 
@@ -121,11 +122,8 @@ class GenesisTransaction(Transaction):
             print("Validating transaction")
 
         # side effects
-        self.__modify_state(utxos, utxos_lock)
+        with utxos_lock:
+            utxos[self.receiver_public_key][self.id] = self.outputs["receiver"]
 
         if not validate_block:
             print("Transaction validated")
-
-    def __modify_state(self, utxos, utxos_lock):
-        with utxos_lock:
-            utxos[self.receiver_public_key][self.id] = self.outputs["receiver"]
