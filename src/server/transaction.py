@@ -1,5 +1,4 @@
 from contextlib import nullcontext
-from copy import deepcopy
 from pickle import dumps
 
 from Cryptodome.Hash import SHA512
@@ -14,6 +13,8 @@ from utils import broadcast
 
 class Transaction:
     def __init__(self, receiver_public_key, amount):
+        print("Creating transaction")
+
         if receiver_public_key == node.public_key:
             raise ValueError("invalid receiver_public_key")
         if amount <= 0:
@@ -41,17 +42,27 @@ class Transaction:
             if utxo_amount != amount:
                 self.outputs["sender"] = utxo_amount - amount
 
-            # side effects
-            self.__modify_state(state.utxos, state.utxos_lock)
+            broadcast("/transaction/validate", self)
 
-        broadcast("/transaction/validate", self)
+            # side effects
+            for tx_id in self.input:
+                del state.utxos[self.sender_public_key][tx_id]
+            state.utxos[self.receiver_public_key][self.id] = self.outputs["receiver"]
+            if "sender" in self.outputs:
+                state.utxos[self.sender_public_key][self.id] = self.outputs["sender"]
 
         print("Transaction created")
+
+        with state.block_lock:
+            state.block.add(self)
 
     def __eq__(self, other):
         return self.id == other.id
 
     def validate(self, utxos, utxos_lock=nullcontext(), validate_block=False):
+        if not validate_block:
+            print("Validating transaction")
+
         if self.sender_public_key == self.receiver_public_key:
             raise Exception("sender == receiver")
 
@@ -67,17 +78,15 @@ class Transaction:
                 raise Exception("amount != sum of outputs")
 
             # side effects
-            self.__modify_state(utxos, utxos_lock, validate_block)
+            for tx_id in self.input:
+                del utxos[self.sender_public_key][tx_id]
+            utxos[self.receiver_public_key][self.id] = self.outputs["receiver"]
+            if "sender" in self.outputs:
+                utxos[self.sender_public_key][self.id] = self.outputs["sender"]
 
+        if not validate_block:
             print("Transaction validated")
 
-    def __modify_state(self, utxos, utxos_lock, validate_block=False):
-        for tx_id in self.input:
-            del utxos[self.sender_public_key][tx_id]
-        utxos[self.receiver_public_key][self.id] = self.outputs["receiver"]
-        if "sender" in self.outputs:
-            utxos[self.sender_public_key][self.id] = self.outputs["sender"]
-        if not validate_block:
             with state.block_lock:
                 state.block.add(self)
 
@@ -92,6 +101,8 @@ class Transaction:
 
 class GenesisTransaction(Transaction):
     def __init__(self):
+        print("Creating transaction")
+
         self.receiver_public_key = node.public_key
         self.id = self.__hash().hexdigest()
         self.outputs = {"receiver": 100 * N_NODES}
@@ -106,10 +117,14 @@ class GenesisTransaction(Transaction):
         return SHA512.new(data=dumps(data))
 
     def validate(self, utxos, utxos_lock=nullcontext(), validate_block=False):
+        if not validate_block:
+            print("Validating transaction")
+
         # side effects
         self.__modify_state(utxos, utxos_lock)
 
-        print("Transaction validated")
+        if not validate_block:
+            print("Transaction validated")
 
     def __modify_state(self, utxos, utxos_lock):
         with utxos_lock:

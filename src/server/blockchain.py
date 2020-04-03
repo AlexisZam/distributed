@@ -4,10 +4,13 @@ from time import time
 
 import state
 from block import Block, GenesisBlock
+from config import DIFFICULTY
 
 
 class Blockchain:
     def __init__(self):
+        print("Creating blockchain")
+
         self.blocks = [GenesisBlock()]
 
         # side effects
@@ -20,13 +23,21 @@ class Blockchain:
         self.blocks.append(block)
 
     def validate(self):
-        for block in self.blocks:
+        print("Validating blockchain")
+
+        for block in self.blocks[1:]:
             if block.previous_hash != self.blocks[block.index - 1].current_hash:
                 raise Exception("invalid blockchain")
 
+        for block in self.blocks[1:]:
+            if int(block.hash().hexdigest()[:DIFFICULTY], base=16) != 0:
+                raise Exception("invalid hash")
+
         utxos = defaultdict(dict)
         for block in self.blocks:
-            block.validate(utxos, validate_blockchain=True)
+            for transaction in block.transactions:
+                transaction.validate(utxos, validate_block=True)
+        assert utxos != defaultdict(dict)
 
         # side effects
         with state.blockchain_lock:
@@ -35,14 +46,12 @@ class Blockchain:
             state.utxos = deepcopy(utxos)
         with state.committed_utxos_lock:
             state.committed_utxos = utxos
+        assert state.utxos == state.committed_utxos
         with state.block_lock:
             state.block = Block()
         # FIXME maybe nested locking
 
         print("Blockchain validated")
-
-    def top(self):
-        return self.blocks[-1]
 
     def length(self):
         return len(self.blocks)

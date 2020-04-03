@@ -16,7 +16,7 @@ from transaction import GenesisTransaction
 from utils import broadcast
 
 block_validated = Event()
-mining = Event()
+# mining = Event()
 
 
 class Block:
@@ -26,23 +26,23 @@ class Block:
     def add(self, transaction):
         self.transactions.append(transaction)
         if len(self.transactions) == CAPACITY:
+            print("Creating block")
+
             with state.blockchain_lock:
-                self.previous_hash = state.blockchain.top().current_hash
+                self.previous_hash = state.blockchain.blocks[-1].current_hash
                 self.index = state.blockchain.length()
 
             self.timestamp = time()
-            mining.set()
             while True:
                 if block_validated.is_set():
-                    mining.clear()
                     block_validated.clear()
+                    print("Block creation failed")
                     return
                 self.nonce = random()
-                self.current_hash = self.__hash().hexdigest()
+                self.current_hash = self.hash().hexdigest()
                 if int(self.current_hash[:DIFFICULTY], base=16) == 0:
                     # metrics
                     metrics.average_block_time.add(time() - self.timestamp)
-                    mining.clear()
                     break
 
             broadcast("/block/validate", self)
@@ -59,38 +59,39 @@ class Block:
 
             print("Block created")
 
-    def validate(
-        self, utxos, utxos_lock=nullcontext(), validate_blockchain=False
-    ):  # FIXME
-        if int(self.__hash().hexdigest()[:DIFFICULTY], base=16) != 0:
+    def validate(self):  # FIXME
+        print("Validating block")
+
+        if int(self.hash().hexdigest()[:DIFFICULTY], base=16) != 0:
             raise Exception("invalid hash")
 
-        try:
-            with state.blockchain_lock:
-                if (
-                    not validate_blockchain
-                    and self.previous_hash != state.blockchain.top().current_hash
-                ):
-                    raise Exception("conflict")
-        except:
-            Block.__resolve_conflict()  # FIXME this should be at validate blockchain
-            return
+        with state.blockchain_lock:
+            if self.previous_hash != state.blockchain.blocks[-1].current_hash:
+                if self.previous_hash in [
+                    block.current_hash for block in state.blockchain.blocks[:-1]
+                ]:
+                    print("block from shorter (or equal) blockchain")
+                    print("Block validation failed")
+                    return
+                Block.__resolve_conflict()  # FIXME this should be at validate blockchain
+                print("Block validation failed")
+                return
 
-        temp_utxos = deepcopy(utxos)  # FIXME should this be first?
-        for transaction in self.transactions:
-            transaction.validate(temp_utxos, validate_block=True)
+        with state.committed_utxos_lock:
+            utxos = deepcopy(state.committed_utxos)  # FIXME should this be first?
+            for transaction in self.transactions:
+                transaction.validate(utxos, validate_block=True)
+            assert utxos != state.committed_utxos
 
-        if mining.is_set():
             block_validated.set()
 
-        # side effects
-        if not validate_blockchain:
+            # side effects
             with state.blockchain_lock:
                 state.blockchain.add(self)
+            state.committed_utxos = utxos
             with state.utxos_lock:
-                state.utxos = deepcopy(temp_utxos)
-            with state.committed_utxos_lock:
-                state.committed_utxos = temp_utxos
+                state.utxos = deepcopy(utxos)
+                assert state.utxos == state.committed_utxos
             with state.block_lock:
                 transactions = deepcopy(state.block.transactions)
                 state.block = Block()
@@ -104,7 +105,7 @@ class Block:
 
         print("Block validated")
 
-    def __hash(self):
+    def hash(self):
         data = (
             [tx.id for tx in self.transactions],
             self.index,
@@ -117,6 +118,7 @@ class Block:
     # TODO check with block headers, resolve conflict from check failure onwards
     @staticmethod
     def __resolve_conflict():
+        print("Resolving conflict")
         while True:
             blockchain_lengths_addresses = [
                 (loads(get(f"http://{address}/blockchain/length").content), address)
@@ -131,14 +133,16 @@ class Block:
                         break  # FIXME might go on forever
                 blockchain.validate()  # TODO try catch this
                 break
+        print("Conflict resolved")
 
 
 class GenesisBlock(Block):
     def __init__(self):
+        print("Creating block")
+
         self.transactions = [GenesisTransaction()]
         self.timestamp = time()
         self.current_hash = 0
-        self.previous_hash = 0
         self.index = 0
 
         # side effects
@@ -147,12 +151,13 @@ class GenesisBlock(Block):
 
         print("Block created")
 
-    def validate(self, utxos, utxos_lock=nullcontext(), validate_blockchain=False):
+    def validate(self, utxos, utxos_lock=nullcontext()):
+        print("Validating block")
+
         self.transactions[0].validate(utxos, utxos_lock)
 
         # side effects
-        if not validate_blockchain:
-            with state.block_lock:
-                state.block = Block()
+        with state.block_lock:
+            state.block = Block()
 
         print("Block validated")

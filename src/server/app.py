@@ -1,7 +1,6 @@
 #!/usr/bin/env python3.8
 
 from collections import defaultdict
-from copy import deepcopy
 from multiprocessing import Value
 from pickle import dumps, loads
 from threading import Thread
@@ -81,7 +80,7 @@ def view():
         return dumps(
             [
                 transaction.__dict__  # FIXME
-                for transaction in state.blockchain.top().transactions
+                for transaction in state.blockchain.blocks[-1].transactions
             ]
         )
 
@@ -119,7 +118,7 @@ def transaction_validate():
 @app.route("/block/validate", methods=["POST"])
 def block_validate():
     block = loads(request.get_data())
-    block.validate(state.committed_utxos, state.committed_utxos_lock)
+    block.validate()
     return ""
 
 

@@ -17,7 +17,7 @@ class AverageBlockTime:
             return self.__sum / self.__counter
 
 
-class AverageThroughput:  # FIXME
+class AverageThroughput:  # TODO add timers
     def __init__(self):
         self.__lock = Lock()
         self.__counter = 0
