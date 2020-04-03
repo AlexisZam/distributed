@@ -15,8 +15,7 @@ from config import CAPACITY, DIFFICULTY
 from transaction import GenesisTransaction
 from utils import broadcast
 
-block_validated = Event()
-# mining = Event()
+validating = Event()
 
 
 class Block:
@@ -28,35 +27,31 @@ class Block:
         if len(self.transactions) == CAPACITY:
             print("Creating block")
 
-            with state.blockchain_lock:
-                self.previous_hash = state.blockchain.blocks[-1].current_hash
-                self.index = state.blockchain.length()
+            self.previous_hash = state.blockchain.blocks[-1].current_hash
+            self.index = state.blockchain.length()
 
-                self.timestamp = time()
-                while True:
-                    if block_validated.is_set():
-                        print("Block creation failed")
-                        return
-                    self.nonce = random()
-                    self.current_hash = self.hash().hexdigest()
-                    if int(self.current_hash[:DIFFICULTY], base=16) == 0:
-                        # metrics
-                        metrics.average_block_time.add(time() - self.timestamp)
-                        break
+            self.timestamp = time()
+            while True:
+                if validating.is_set():
+                    print("Block creation failed")
+                    return
+                self.nonce = random()
+                self.current_hash = self.hash().hexdigest()
+                if int(self.current_hash[:DIFFICULTY], base=16) == 0:
+                    # metrics
+                    metrics.average_block_time.add(time() - self.timestamp)
+                    break
 
-                broadcast("/block/validate", self)
+            broadcast("/block/validate", self)
 
-                # side effects
-                state.blockchain.add(self)
-                with state.utxos_lock:  # TODO this is unnecessary
-                    with state.committed_utxos_lock:
-                        state.committed_utxos = deepcopy(state.utxos)
-                state.block = Block()
-                # FIXME maybe nested locking
+            # side effects
+            state.blockchain.add(self)
+            state.committed_utxos = deepcopy(state.utxos)
+            state.block = Block()
 
             print("Block created")
 
-    def validate(self):  # FIXME
+    def validate(self):
         print("Validating block")
 
         if len(self.transactions) != CAPACITY:
@@ -67,9 +62,10 @@ class Block:
         if int(h[:DIFFICULTY], base=16) != 0:
             raise Exception("invalid proof of work")
 
-        block_validated.set()
+        validating.set()
 
-        with state.blockchain_lock:
+        with state.lock:
+
             if self.previous_hash != state.blockchain.blocks[-1].current_hash:
                 print("Block validation failed")
                 if self.previous_hash in [
@@ -77,32 +73,28 @@ class Block:
                 ]:
                     print("block from shorter (or equal) blockchain")
                     return
-                with state.block_lock:  # FIXME why here?
-                    Block.__resolve_conflict()  # FIXME this should be at validate blockchain
+                Block.__resolve_conflict()  # FIXME this should be at validate blockchain
                 return
 
-            with state.committed_utxos_lock:
-                utxos = deepcopy(state.committed_utxos)  # FIXME should this be first?
-                for transaction in self.transactions:
-                    transaction.validate(utxos, validate_block=True)
-                assert utxos != state.committed_utxos
+            utxos = deepcopy(state.committed_utxos)
+            for transaction in self.transactions:
+                transaction.validate(utxos, validate_block=True)
+            assert utxos != state.committed_utxos
 
-                # side effects
-                state.blockchain.add(self)
-                state.committed_utxos = utxos
-                with state.utxos_lock:
-                    state.utxos = deepcopy(utxos)
-                    assert state.utxos == state.committed_utxos
+            # side effects
+            state.blockchain.add(self)
+            state.committed_utxos = utxos
+            state.utxos = deepcopy(utxos)
+            assert state.utxos == state.committed_utxos
 
-        block_validated.clear()
+            validating.clear()
 
-        with state.block_lock:
             transactions = deepcopy(state.block.transactions)
             state.block = Block()
             # FIXME why is this (and the following lines) locked?
             for transaction in transactions:
                 if transaction not in self.transactions:
-                    transaction.validate(state.utxos, state.utxos_lock)
+                    transaction.validate(state.utxos, state.lock)
 
         print("Block validated")
 
@@ -146,18 +138,6 @@ class GenesisBlock(Block):
         self.index = 0
 
         # side effects
-        with state.block_lock:
-            state.block = Block()
+        state.block = Block()
 
         print("Block created")
-
-    def validate(self, utxos, utxos_lock=nullcontext()):
-        print("Validating block")
-
-        self.transactions[0].validate(utxos, utxos_lock)
-
-        # side effects
-        with state.block_lock:
-            state.block = Block()
-
-        print("Block validated")

@@ -58,31 +58,41 @@ def public_keys():
 
 @app.route("/balance")
 def balance():
-    with state.utxos_lock:
-        return dumps(sum(state.utxos[node.public_key].values()))
+    return dumps(sum(state.utxos[node.public_key].values()))
+
+
+@app.route("/balances")
+def balances():
+    return dumps(
+        [
+            {
+                "index": i,
+                "uncommitted": sum(state.utxos[public_key].values()),
+                "committed": sum(state.committed_utxos[public_key].values()),
+            }
+            for i, public_key in enumerate(node.public_keys)
+        ]
+    )
 
 
 @app.route("/blockchain")
 def blockchain():
-    # with state.blockchain_lock:
     return dumps(state.blockchain)
 
 
 @app.route("/blockchain/length")
 def blockchain_length():
-    # with state.blockchain_lock:
     return dumps(state.blockchain.length())
 
 
 @app.route("/blockchain/top/transactions")
 def view():
-    with state.blockchain_lock:
-        return dumps(
-            [
-                transaction.__dict__  # FIXME
-                for transaction in state.blockchain.blocks[-1].transactions
-            ]
-        )
+    return dumps(
+        [
+            transaction.__dict__  # FIXME
+            for transaction in state.blockchain.blocks[-1].transactions
+        ]
+    )
 
 
 # Get metrics
@@ -100,7 +110,7 @@ def average_block_time():
 
 # Post
 
-
+# TODO authorize this view
 @app.route("/transaction", methods=["POST"])
 def transaction():
     receiver_public_key, amount = loads(request.get_data())
@@ -111,7 +121,7 @@ def transaction():
 @app.route("/transaction/validate", methods=["POST"])
 def transaction_validate():
     transaction = loads(request.get_data())
-    transaction.validate(state.utxos, state.utxos_lock)
+    transaction.validate(state.utxos, state.lock)
     return ""
 
 

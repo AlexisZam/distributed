@@ -23,7 +23,7 @@ class Transaction:
         self.sender_public_key = node.public_key
         self.receiver_public_key = receiver_public_key
 
-        with state.utxos_lock:
+        with state.lock:
             utxo_amount = 0
             self.input = []
             for tx_id, tx_amount in state.utxos[self.sender_public_key].items():
@@ -53,13 +53,12 @@ class Transaction:
 
             print("Transaction created")
 
-        with state.block_lock:
             state.block.add(self)
 
     def __eq__(self, other):
         return self.id == other.id
 
-    def validate(self, utxos, utxos_lock=nullcontext(), validate_block=False):
+    def validate(self, utxos, lock=nullcontext(), validate_block=False):
         if not validate_block:
             print("Validating transaction")
 
@@ -71,7 +70,7 @@ class Transaction:
         ):
             raise Exception("invalid signature")
 
-        with utxos_lock:
+        with lock:
             if sum(utxos[self.sender_public_key][tx_id] for tx_id in self.input) != sum(
                 self.outputs.values()
             ):
@@ -84,10 +83,9 @@ class Transaction:
             if "sender" in self.outputs:
                 utxos[self.sender_public_key][self.id] = self.outputs["sender"]
 
-        if not validate_block:
-            print("Transaction validated")
+            if not validate_block:
+                print("Transaction validated")
 
-            with state.block_lock:
                 state.block.add(self)
 
     def __hash(self):
@@ -108,8 +106,7 @@ class GenesisTransaction(Transaction):
         self.outputs = {"receiver": 100 * N_NODES}
 
         # side effects
-        with state.utxos_lock:
-            state.utxos[self.receiver_public_key][self.id] = self.outputs["receiver"]
+        state.utxos[self.receiver_public_key][self.id] = self.outputs["receiver"]
 
         print("Transaction created")
 
@@ -117,12 +114,12 @@ class GenesisTransaction(Transaction):
         data = self.receiver_public_key
         return SHA512.new(data=dumps(data))
 
-    def validate(self, utxos, utxos_lock=nullcontext(), validate_block=False):
+    def validate(self, utxos, lock=nullcontext(), validate_block=False):
         if not validate_block:
             print("Validating transaction")
 
         # side effects
-        with utxos_lock:
+        with lock:
             utxos[self.receiver_public_key][self.id] = self.outputs["receiver"]
 
         if not validate_block:

@@ -45,6 +45,14 @@ class REPL(Cmd):
             sep="\n",
         )
 
+    # FIXME delete hereafter
+
+    def do_balances(self, _):
+        balances = loads(get(f"http://{address}/balances").content)
+        from pprint import pprint
+
+        pprint(balances)
+
 
 parser = ArgumentParser(add_help=False)
 parser.add_argument("-h", "--host", default="127.0.0.1", type=str)

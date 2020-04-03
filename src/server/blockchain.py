@@ -14,8 +14,7 @@ class Blockchain:
         self.blocks = [GenesisBlock()]
 
         # side effects
-        with state.blockchain_lock:
-            state.blockchain = self
+        state.blockchain = self
 
         print("Blockchain created")
 
@@ -40,26 +39,21 @@ class Blockchain:
         assert utxos != defaultdict(dict)
 
         # side effects
-        with state.blockchain_lock:
-            state.blockchain = self
-            with state.utxos_lock:
-                state.utxos = deepcopy(utxos)
-                with state.committed_utxos_lock:
-                    state.committed_utxos = utxos
+        state.blockchain = self
+        state.utxos = deepcopy(utxos)
+        state.committed_utxos = utxos
         assert state.utxos == state.committed_utxos
 
-        with state.block_lock:
-            transactions = deepcopy(state.block.transactions)
-            state.block = Block()
-            # FIXME why is this (and the following lines) locked?
-            for transaction in transactions:
-                if transaction not in [
-                    transaction
-                    for block in self.blocks
-                    for transaction in block.transactions
-                ]:
-                    transaction.validate(state.utxos, state.utxos_lock)
-        # FIXME maybe nested locking
+        transactions = deepcopy(state.block.transactions)
+        state.block = Block()
+        # FIXME why is this (and the following lines) locked?
+        for transaction in transactions:
+            if transaction not in [
+                transaction
+                for block in self.blocks
+                for transaction in block.transactions
+            ]:
+                transaction.validate(state.utxos, state.lock)
 
         print("Blockchain validated")
 
