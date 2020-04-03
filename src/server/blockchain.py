@@ -2,7 +2,6 @@ from collections import defaultdict
 from copy import deepcopy
 from time import time
 
-import metrics
 import state
 from block import Block, GenesisBlock
 
@@ -19,9 +18,6 @@ class Blockchain:
 
     def add(self, block):
         self.blocks.append(block)
-
-        # metrics
-        metrics.average_block_time.add(time() - block.timestamp)
 
     def validate(self):
         for block in self.blocks:

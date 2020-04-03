@@ -53,8 +53,8 @@ class REPL(Cmd):
 
 
 parser = ArgumentParser(add_help=False)
-parser.add_argument("-h", "--host", type=str)
-parser.add_argument("-p", "--port", type=int)
+parser.add_argument("-h", "--host", default="127.0.0.1", type=str)
+parser.add_argument("-p", "--port", default=5000, type=int)
 args = parser.parse_args()
 address = f"{args.host}:{args.port}"
 

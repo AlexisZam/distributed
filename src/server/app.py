@@ -123,4 +123,13 @@ def block_validate():
     return ""
 
 
+# Quit
+
+
+@app.route("/quit", methods=["POST"])
+def quit():
+    request.environ.get("werkzeug.server.shutdown")()
+    return ""
+
+
 app.run(host=HOST, port=PORT)

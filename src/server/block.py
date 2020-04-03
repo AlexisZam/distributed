@@ -8,6 +8,7 @@ from time import time
 from Cryptodome.Hash import SHA512
 from requests import get
 
+import metrics
 import node
 import state
 from config import CAPACITY, DIFFICULTY
@@ -21,7 +22,6 @@ mining = Event()
 class Block:
     def __init__(self):
         self.transactions = []
-        self.timestamp = time()
 
     def add(self, transaction):
         self.transactions.append(transaction)
@@ -30,6 +30,7 @@ class Block:
                 self.previous_hash = state.blockchain.top().current_hash
                 self.index = state.blockchain.length()
 
+            self.timestamp = time()
             mining.set()
             while True:
                 if block_validated.is_set():
@@ -39,6 +40,8 @@ class Block:
                 self.nonce = random()
                 self.current_hash = self.__hash().hexdigest()
                 if int(self.current_hash[:DIFFICULTY], base=16) == 0:
+                    # metrics
+                    metrics.average_block_time.add(time() - self.timestamp)
                     mining.clear()
                     break
 
