@@ -35,7 +35,6 @@ class Block:
             self.timestamp = time()
             while True:
                 if block_validated.is_set():
-                    block_validated.clear()
                     print("Block creation failed")
                     return
                 self.nonce = random()
@@ -101,7 +100,7 @@ class Block:
                         transaction.validate(state.utxos, state.utxos_lock)
             # FIXME maybe nested locking
 
-        block_validated.clear()
+            block_validated.clear()
 
         print("Block validated")
 
