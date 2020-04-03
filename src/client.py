@@ -45,12 +45,6 @@ class REPL(Cmd):
             sep="\n",
         )
 
-    # FIXME remove from here onwards
-
-    def do_index(self, _):
-        index = loads(get(f"http://{address}/index").content)
-        print(index)
-
 
 parser = ArgumentParser(add_help=False)
 parser.add_argument("-h", "--host", default="127.0.0.1", type=str)

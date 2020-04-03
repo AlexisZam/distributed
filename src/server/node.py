@@ -19,7 +19,7 @@ if address == BOOTSTRAP_ADDRESS:
     public_keys_lock = Lock()
     public_keys = [public_key]
 else:
-    sleep(3)  # FIXME sleep or timeout = None ?
+    sleep(3)  # FIXME
 
     index, addresses, public_keys = loads(
         post(
