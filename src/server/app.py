@@ -99,7 +99,7 @@ def view():
 
 @app.route("/metrics/average_throughput")
 def average_throughput():
-    return dumps(metrics.average_throughout.get())
+    return dumps(metrics.average_throughput.get())
 
 
 @app.route("/metrics/average_block_time")

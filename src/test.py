@@ -29,8 +29,8 @@ sleep(5)
 average_block_time = loads(get(f"http://{address}/metrics/average_block_time").content)
 print(average_block_time)
 
-average_throughout = loads(get(f"http://{address}/metrics/average_throughput").content)
-print(average_throughout)
+average_throughput = loads(get(f"http://{address}/metrics/average_throughput").content)
+print(average_throughput)
 
 balance = loads(get(f"http://{address}/balance").content)
 print(balance)

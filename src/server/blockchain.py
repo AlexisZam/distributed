@@ -23,7 +23,7 @@ class Blockchain:
         self.blocks.append(block)
 
         # metrics
-        metrics.average_throughout.increment()
+        metrics.average_throughput.time()
 
     def validate(self):
         print("Validating blockchain")

@@ -17,7 +17,7 @@ class Transaction:
         print("Creating transaction")
 
         # metrics
-        metrics.average_throughout.increment()
+        metrics.average_throughput.increment()
 
         if receiver_public_key == node.public_key:
             raise ValueError("invalid receiver_public_key")

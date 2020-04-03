@@ -24,12 +24,14 @@ class AverageThroughput:
         self.__counter = 0
 
     def increment(self):
-        if self.__counter == 0:
-            self.__start = time()
-        self.__counter += 1
+        with self.__lock:
+            if self.__counter == 0:
+                self.__start = time()
+            self.__counter += 1
 
     def time(self):
-        self.__finish = time()
+        with self.__lock:
+            self.__finish = time()
 
     def get(self):
         with self.__lock:
@@ -37,4 +39,4 @@ class AverageThroughput:
 
 
 average_block_time = AverageBlockTime()
-average_throughout = AverageThroughput()
+average_throughput = AverageThroughput()
