@@ -1,7 +1,7 @@
 from argparse import ArgumentParser
 from pickle import dumps, loads
 from threading import Lock
-
+from time import sleep
 from Cryptodome.PublicKey import RSA
 from requests import post
 
@@ -19,6 +19,8 @@ if address == BOOTSTRAP_ADDRESS:
     public_keys_lock = Lock()
     public_keys = [public_key]
 else:
+    sleep(3)  # FIXME sleep or timeout = None ?
+
     index, addresses, public_keys = loads(
         post(
             f"http://{BOOTSTRAP_ADDRESS}/login", data=dumps((address, public_key)),
