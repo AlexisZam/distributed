@@ -2,6 +2,7 @@ from collections import defaultdict
 from copy import deepcopy
 from time import time
 
+import metrics
 import state
 from block import Block, GenesisBlock
 from config import DIFFICULTY
@@ -21,41 +22,45 @@ class Blockchain:
     def add(self, block):
         self.blocks.append(block)
 
+        # metrics
+        metrics.average_throughout.increment()
+
     def validate(self):
         print("Validating blockchain")
 
+        previous = self.blocks[0]
         for block in self.blocks[1:]:
-            if block.previous_hash != self.blocks[block.index - 1].current_hash:
+            if block.previous_hash != previous.current_hash:
                 raise Exception("invalid blockchain")
+            previous = block
 
         for block in self.blocks[1:]:
             if int(block.hash().hexdigest()[:DIFFICULTY], base=16) != 0:
-                raise Exception("invalid hash")
+                raise Exception("invalid proof of work")
 
         utxos = defaultdict(dict)
         for block in self.blocks:
             for transaction in block.transactions:
                 transaction.validate(utxos, validate_block=True)
-        assert utxos != defaultdict(dict)
 
         # side effects
+        transactions = state.block.transactions + [
+            transaction
+            for block in state.blockchain.blocks
+            for transaction in block.transactions
+        ]
+
         state.blockchain = self
         state.utxos = deepcopy(utxos)
         state.committed_utxos = utxos
-        assert state.utxos == state.committed_utxos
 
-        transactions = deepcopy(state.block.transactions)
         state.block = Block()
-        # FIXME why is this (and the following lines) locked?
         for transaction in transactions:
             if transaction not in [
                 transaction
                 for block in self.blocks
                 for transaction in block.transactions
             ]:
-                transaction.validate(state.utxos, state.lock)
+                transaction.validate(state.utxos)
 
         print("Blockchain validated")
-
-    def length(self):
-        return len(self.blocks)

@@ -2,7 +2,6 @@ from contextlib import nullcontext
 from copy import deepcopy
 from pickle import dumps, loads
 from random import random
-from threading import Event
 from time import time
 
 from Cryptodome.Hash import SHA512
@@ -15,8 +14,6 @@ from config import CAPACITY, DIFFICULTY
 from transaction import GenesisTransaction
 from utils import broadcast
 
-validating = Event()
-
 
 class Block:
     def __init__(self):
@@ -24,15 +21,17 @@ class Block:
 
     def add(self, transaction):
         self.transactions.append(transaction)
+        self.mine()
+
+    def mine(self):
         if len(self.transactions) == CAPACITY:
             print("Creating block")
 
             self.previous_hash = state.blockchain.blocks[-1].current_hash
-            self.index = state.blockchain.length()
 
             self.timestamp = time()
             while True:
-                if validating.is_set():
+                if state.validating.is_set():
                     print("Block creation failed")
                     return
                 self.nonce = random()
@@ -62,56 +61,48 @@ class Block:
         if int(h[:DIFFICULTY], base=16) != 0:
             raise Exception("invalid proof of work")
 
-        validating.set()
-
-        with state.lock:
-
-            if self.previous_hash != state.blockchain.blocks[-1].current_hash:
-                print("Block validation failed")
-                if self.previous_hash in [
-                    block.current_hash for block in state.blockchain.blocks[:-1]
-                ]:
-                    print("block from shorter (or equal) blockchain")
-                    return
-                Block.__resolve_conflict()  # FIXME this should be at validate blockchain
+        if self.previous_hash != state.blockchain.blocks[-1].current_hash:
+            print("Block validation failed")
+            if self.previous_hash in [
+                block.current_hash for block in state.blockchain.blocks[:-1]
+            ]:
+                print("block from shorter (or equal) blockchain")
                 return
+            Block.__resolve_conflict()
+            return
 
-            utxos = deepcopy(state.committed_utxos)
-            for transaction in self.transactions:
-                transaction.validate(utxos, validate_block=True)
-            assert utxos != state.committed_utxos
+        utxos = deepcopy(state.committed_utxos)
+        for transaction in self.transactions:
+            transaction.validate(utxos, validate_block=True)
 
-            # side effects
-            state.blockchain.add(self)
-            state.committed_utxos = utxos
-            state.utxos = deepcopy(utxos)
-            assert state.utxos == state.committed_utxos
+        # side effects
+        state.blockchain.add(self)
+        state.committed_utxos = utxos
+        state.utxos = deepcopy(utxos)
 
-            validating.clear()
-
-            transactions = deepcopy(state.block.transactions)
-            state.block = Block()
-            # FIXME why is this (and the following lines) locked?
-            for transaction in transactions:
-                if transaction not in self.transactions:
-                    transaction.validate(state.utxos, state.lock)
+        transactions = deepcopy(state.block.transactions)
+        state.block = Block()
+        for transaction in transactions:
+            if transaction not in self.transactions:
+                transaction.validate(state.utxos)
 
         print("Block validated")
 
     def hash(self):
         data = (
             [tx.id for tx in self.transactions],
-            self.index,
             self.timestamp,
             self.previous_hash,
             self.nonce,
         )
         return SHA512.new(data=dumps(data))
 
+    # FIXME might go on forever
     # TODO check with block headers, resolve conflict from check failure onwards
     @staticmethod
     def __resolve_conflict():
         print("Resolving conflict")
+
         while True:
             blockchain_lengths_addresses = [
                 (loads(get(f"http://{address}/blockchain/length").content), address)
@@ -120,11 +111,14 @@ class Block:
             ]
             max_length, address = max(blockchain_lengths_addresses)
             blockchain = loads(get(f"http://{address}/blockchain").content)
-            if max_length <= blockchain.length():
-                print("peordoulis")
-                if max_length >= state.blockchain.length():
-                    blockchain.validate()  # TODO try catch this
-                break  # FIXME might go on forever
+            if max_length <= len(blockchain.blocks):
+                if max_length >= len(state.blockchain.blocks):
+                    try:
+                        blockchain.validate()
+                    except:
+                        continue
+                break
+
         print("Conflict resolved")
 
 

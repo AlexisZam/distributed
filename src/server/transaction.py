@@ -5,6 +5,7 @@ from Cryptodome.Hash import SHA512
 from Cryptodome.PublicKey import RSA
 from Cryptodome.Signature import PKCS1_v1_5
 
+import metrics
 import node
 import state
 from config import N_NODES
@@ -15,6 +16,9 @@ class Transaction:
     def __init__(self, receiver_public_key, amount):
         print("Creating transaction")
 
+        # metrics
+        metrics.average_throughout.increment()
+
         if receiver_public_key == node.public_key:
             raise ValueError("invalid receiver_public_key")
         if amount <= 0:
@@ -23,37 +27,36 @@ class Transaction:
         self.sender_public_key = node.public_key
         self.receiver_public_key = receiver_public_key
 
-        with state.lock:
-            utxo_amount = 0
-            self.input = []
-            for tx_id, tx_amount in state.utxos[self.sender_public_key].items():
-                if utxo_amount >= amount:
-                    break
-                utxo_amount += tx_amount
-                self.input.append(tx_id)
-            if utxo_amount < amount:
-                raise ValueError("insufficient amount")
+        utxo_amount = 0
+        self.input = []
+        for tx_id, tx_amount in state.utxos[self.sender_public_key].items():
+            if utxo_amount >= amount:
+                break
+            utxo_amount += tx_amount
+            self.input.append(tx_id)
+        if utxo_amount < amount:
+            raise ValueError("insufficient amount")
 
-            h = self.__hash()
-            self.id = h.hexdigest()
-            self.signature = PKCS1_v1_5.new(node.private_key).sign(h)  # TODO pio kato
+        h = self.__hash()
+        self.id = h.hexdigest()
+        self.signature = PKCS1_v1_5.new(node.private_key).sign(h)
 
-            self.outputs = {"receiver": amount}
-            if utxo_amount != amount:
-                self.outputs["sender"] = utxo_amount - amount
+        self.outputs = {"receiver": amount}
+        if utxo_amount != amount:
+            self.outputs["sender"] = utxo_amount - amount
 
-            broadcast("/transaction/validate", self)
+        broadcast("/transaction/validate", self)
 
-            # side effects
-            for tx_id in self.input:
-                del state.utxos[self.sender_public_key][tx_id]
-            state.utxos[self.receiver_public_key][self.id] = self.outputs["receiver"]
-            if "sender" in self.outputs:
-                state.utxos[self.sender_public_key][self.id] = self.outputs["sender"]
+        # side effects
+        for tx_id in self.input:
+            del state.utxos[self.sender_public_key][tx_id]
+        state.utxos[self.receiver_public_key][self.id] = self.outputs["receiver"]
+        if "sender" in self.outputs:
+            state.utxos[self.sender_public_key][self.id] = self.outputs["sender"]
 
-            print("Transaction created")
+        print("Transaction created")
 
-            state.block.add(self)
+        state.block.add(self)
 
     def __eq__(self, other):
         return self.id == other.id
@@ -115,12 +118,5 @@ class GenesisTransaction(Transaction):
         return SHA512.new(data=dumps(data))
 
     def validate(self, utxos, lock=nullcontext(), validate_block=False):
-        if not validate_block:
-            print("Validating transaction")
-
         # side effects
-        with lock:
-            utxos[self.receiver_public_key][self.id] = self.outputs["receiver"]
-
-        if not validate_block:
-            print("Transaction validated")
+        utxos[self.receiver_public_key][self.id] = self.outputs["receiver"]

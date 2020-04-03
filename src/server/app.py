@@ -23,14 +23,13 @@ if node.address == BOOTSTRAP_ADDRESS:
     @app.route("/login", methods=["POST"])
     def login():
         address, public_key = loads(request.get_data())
-        with node.addresses_lock:
-            node.addresses.append(address)
-        with node.public_keys_lock:
+        with node.lock:
             index = len(node.public_keys)
+            node.addresses.append(address)
             node.public_keys.append(public_key)
 
         while True:
-            with node.public_keys_lock:
+            with node.lock:
                 if len(node.public_keys) == N_NODES:
                     return dumps((index, node.addresses, node.public_keys))
 
@@ -82,14 +81,14 @@ def blockchain():
 
 @app.route("/blockchain/length")
 def blockchain_length():
-    return dumps(state.blockchain.length())
+    return dumps(len(state.blockchain.blocks))
 
 
 @app.route("/blockchain/top/transactions")
 def view():
     return dumps(
         [
-            transaction.__dict__  # FIXME
+            transaction.__dict__
             for transaction in state.blockchain.blocks[-1].transactions
         ]
     )
@@ -114,7 +113,8 @@ def average_block_time():
 @app.route("/transaction", methods=["POST"])
 def transaction():
     receiver_public_key, amount = loads(request.get_data())
-    Transaction(receiver_public_key, amount)
+    with state.lock:
+        Transaction(receiver_public_key, amount)
     return ""
 
 
@@ -128,7 +128,14 @@ def transaction_validate():
 @app.route("/block/validate", methods=["POST"])
 def block_validate():
     block = loads(request.get_data())
-    block.validate()
+    state.validating.set()
+    with state.lock:
+        try:
+            block.validate()
+        except:
+            state.validating.clear()
+            state.block.mine()
+    state.validating.clear()
     return ""
 
 
