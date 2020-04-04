@@ -4,6 +4,7 @@ from argparse import ArgumentParser
 from pickle import dumps, loads
 from pprint import pprint
 from time import sleep
+from math import ceil
 
 from requests import get, post
 
@@ -20,15 +21,8 @@ sleep(5)
 public_keys = loads(get(f"http://{address}/public_keys").content)
 index = loads(get(f"http://{address}/index").content)
 
-if n_nodes in range(1, 6):
-    n_nodes = 5
-elif n_nodes in range(6, 10):
-    n_nodes = 10
-else:
-    raise ValueError("n_nodes")
-
 with open(
-    f"/home/user/distributed/transactions/{n_nodes}nodes/transactions{index}.txt"
+    f"/home/user/distributed/transactions/{ceil(n_nodes / 5) * 5}nodes/transactions{index}.txt"
 ) as f:
     for line in f:
         index, amount = map(int, line[2:].split())
