@@ -3,7 +3,6 @@ from pickle import dumps, loads
 from threading import Lock
 from Cryptodome.PublicKey import RSA
 from requests import post
-from requests.exceptions import ConnectionError
 
 from config import BOOTSTRAP_ADDRESS, HOST, PORT
 
@@ -19,13 +18,8 @@ if address == BOOTSTRAP_ADDRESS:
     public_keys = [public_key]
 else:
     while True:
-        try:
-            index, addresses, public_keys = loads(
-                post(
-                    f"http://{BOOTSTRAP_ADDRESS}/login",
-                    data=dumps((address, public_key)),
-                ).content
-            )
-            break
-        except ConnectionError:
-            pass
+        index, addresses, public_keys = loads(
+            post(
+                f"http://{BOOTSTRAP_ADDRESS}/login", data=dumps((address, public_key)),
+            ).content
+        )
