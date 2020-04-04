@@ -5,7 +5,7 @@ from multiprocessing import Value
 from pickle import dumps, loads
 from threading import Thread
 
-from flask import Flask, request
+from flask import Flask, request, render_template
 from requests import get, post
 
 import metrics
@@ -107,6 +107,11 @@ def average_block_time():
     return dumps(metrics.average_block_time.get())
 
 
+@app.route("/metrics/statistics")
+def statistics():
+    return dumps(metrics.statistics)
+
+
 # Post
 
 # TODO authorize this view
@@ -121,10 +126,12 @@ def transaction():
 @app.route("/transaction/validate", methods=["POST"])
 def transaction_validate():
     transaction = loads(request.get_data())
-    transaction.validate(state.utxos, state.lock)
+    with state.lock:
+        transaction.validate(state.utxos)
     return ""
 
 
+# TODO should mining be more parallel?
 @app.route("/block/validate", methods=["POST"])
 def block_validate():
     block = loads(request.get_data())

@@ -17,6 +17,7 @@ class Blockchain:
         # side effects
         state.blockchain = self
 
+        metrics.statistics["blockchains_created"] += 1
         print("Blockchain created")
 
     def add(self, block):
@@ -63,4 +64,5 @@ class Blockchain:
             ]:
                 transaction.validate(state.utxos)
 
+        metrics.statistics["blockchains_validated"] += 1
         print("Blockchain validated")

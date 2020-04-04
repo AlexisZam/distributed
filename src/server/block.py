@@ -48,6 +48,7 @@ class Block:
             state.committed_utxos = deepcopy(state.utxos)
             state.block = Block()
 
+            metrics.statistics["blocks_created"] += 1
             print("Block created")
 
     def validate(self):
@@ -86,6 +87,7 @@ class Block:
             if transaction not in self.transactions:
                 transaction.validate(state.utxos)
 
+        metrics.statistics["blocks_validated"] += 1
         print("Block validated")
 
     def hash(self):
@@ -119,6 +121,7 @@ class Block:
                         continue
                 break
 
+        metrics.statistics["conflicts_resolved"] += 1
         print("Conflict resolved")
 
 

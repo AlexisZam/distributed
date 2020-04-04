@@ -54,6 +54,7 @@ class Transaction:
         if "sender" in self.outputs:
             state.utxos[self.sender_public_key][self.id] = self.outputs["sender"]
 
+        metrics.statistics["transactions_created"] += 1
         print("Transaction created")
 
         state.block.add(self)
@@ -61,7 +62,7 @@ class Transaction:
     def __eq__(self, other):
         return self.id == other.id
 
-    def validate(self, utxos, lock=nullcontext(), validate_block=False):
+    def validate(self, utxos, validate_block=False):
         if not validate_block:
             print("Validating transaction")
 
@@ -73,23 +74,23 @@ class Transaction:
         ):
             raise Exception("invalid signature")
 
-        with lock:
-            if sum(utxos[self.sender_public_key][tx_id] for tx_id in self.input) != sum(
-                self.outputs.values()
-            ):
-                raise Exception("amount != sum of outputs")
+        if sum(utxos[self.sender_public_key][tx_id] for tx_id in self.input) != sum(
+            self.outputs.values()
+        ):
+            raise Exception("amount != sum of outputs")
 
-            # side effects
-            for tx_id in self.input:
-                del utxos[self.sender_public_key][tx_id]
-            utxos[self.receiver_public_key][self.id] = self.outputs["receiver"]
-            if "sender" in self.outputs:
-                utxos[self.sender_public_key][self.id] = self.outputs["sender"]
+        # side effects
+        for tx_id in self.input:
+            del utxos[self.sender_public_key][tx_id]
+        utxos[self.receiver_public_key][self.id] = self.outputs["receiver"]
+        if "sender" in self.outputs:
+            utxos[self.sender_public_key][self.id] = self.outputs["sender"]
 
-            if not validate_block:
-                print("Transaction validated")
+        if not validate_block:
+            metrics.statistics["transactions_validated"] += 1
+            print("Transaction validated")
 
-                state.block.add(self)
+            state.block.add(self)
 
     def __hash(self):
         data = (

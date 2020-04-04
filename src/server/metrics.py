@@ -1,5 +1,6 @@
 from threading import Lock
 from time import time
+from collections import defaultdict
 
 
 class AverageBlockTime:
@@ -40,3 +41,4 @@ class AverageThroughput:
 
 average_block_time = AverageBlockTime()
 average_throughput = AverageThroughput()
+statistics = defaultdict(int)

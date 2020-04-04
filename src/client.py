@@ -4,6 +4,7 @@ import readline
 from argparse import ArgumentParser
 from cmd import Cmd
 from pickle import dumps, loads
+from pprint import pprint
 
 from requests import get, post
 
@@ -30,11 +31,11 @@ class REPL(Cmd):
         transactions = loads(
             get(f"http://{address}/blockchain/top/transactions").content
         )
-        print(transactions)
+        pprint(transactions)
 
     def do_balance(self, _):
         balance = loads(get(f"http://{address}/balance").content)
-        print(balance)
+        pprint(balance)
 
     def do_help(self, _):
         print(
@@ -49,9 +50,23 @@ class REPL(Cmd):
 
     def do_balances(self, _):
         balances = loads(get(f"http://{address}/balances").content)
-        from pprint import pprint
-
         pprint(balances)
+
+    def do_average_throughput(self, _):
+        average_throughput = loads(
+            get(f"http://{address}/metrics/average_throughput").content
+        )
+        pprint(average_throughput)
+
+    def do_average_block_time(self, _):
+        average_block_time = loads(
+            get(f"http://{address}/metrics/average_block_time").content
+        )
+        pprint(average_block_time)
+
+    def do_statistics(self, _):
+        statistics = loads(get(f"http://{address}/metrics/statistics").content)
+        pprint(statistics)
 
 
 parser = ArgumentParser(add_help=False)
