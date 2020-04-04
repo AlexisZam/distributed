@@ -63,3 +63,5 @@ pprint("Balances")
 pprint(balances)
 
 post(f"http://{address}/quit")
+
+sleep(5)
