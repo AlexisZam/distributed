@@ -114,6 +114,10 @@ def statistics():
 @app.route("/transaction", methods=["POST"])
 def transaction():
     receiver_public_key, amount = loads(request.get_data())
+
+    # metrics
+    metrics.average_throughput.increment()
+
     with state.lock:
         Transaction(receiver_public_key, amount)
     return ""
@@ -122,6 +126,10 @@ def transaction():
 @app.route("/transaction/validate", methods=["POST"])
 def transaction_validate():
     transaction = loads(request.get_data())
+
+    # metrics
+    metrics.average_throughput.increment()
+
     with state.lock:
         transaction.validate(state.utxos)
     return ""

@@ -15,9 +15,6 @@ class Transaction:
     def __init__(self, receiver_public_key, amount):
         print("Creating transaction")
 
-        # metrics
-        metrics.average_throughput.increment()
-
         if receiver_public_key == node.public_key:
             raise ValueError("invalid receiver_public_key")
         if amount <= 0:
