@@ -17,9 +17,8 @@ if address == BOOTSTRAP_ADDRESS:
     addresses = [address]
     public_keys = [public_key]
 else:
-    while True:
-        index, addresses, public_keys = loads(
-            post(
-                f"http://{BOOTSTRAP_ADDRESS}/login", data=dumps((address, public_key)),
-            ).content
-        )
+    index, addresses, public_keys = loads(
+        post(
+            f"http://{BOOTSTRAP_ADDRESS}/login", data=dumps((address, public_key)),
+        ).content
+    )
