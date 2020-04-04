@@ -117,6 +117,6 @@ class GenesisTransaction(Transaction):
         data = self.receiver_public_key
         return SHA512.new(data=dumps(data))
 
-    def validate(self, utxos, lock=nullcontext(), validate_block=False):
+    def validate(self, utxos, validate_block=False):
         # side effects
         utxos[self.receiver_public_key][self.id] = self.outputs["receiver"]
