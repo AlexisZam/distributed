@@ -2,6 +2,7 @@
 
 from argparse import ArgumentParser
 from pickle import dumps, loads
+from pprint import pprint
 from time import sleep
 
 from requests import get, post
@@ -33,22 +34,29 @@ while True:
     sleep(5)
     curr_balances = loads(get(f"http://{address}/balances").content)
     if curr_balances == prev_balances:
-        break
+        sleep(60)
+        if curr_balances == loads(get(f"http://{address}/balances").content):
+            break
     prev_balances = curr_balances
 
 average_block_time = loads(get(f"http://{address}/metrics/average_block_time").content)
-print("Average block time", average_block_time)
+pprint("Average block time")
+pprint(average_block_time)
 
 average_throughput = loads(get(f"http://{address}/metrics/average_throughput").content)
-print("Average throughput:", average_throughput)
+pprint("Average throughput")
+pprint(average_throughput)
 
 statistics = loads(get(f"http://{address}/metrics/statistics").content)
-print("Statistics:", statistics)
+pprint("Statistics")
+pprint(statistics)
 
 balance = loads(get(f"http://{address}/balance").content)
-print("Balance:", balance)
+pprint("Balance")
+pprint(balance)
 
 balances = loads(get(f"http://{address}/balances").content)
-print("Balances:", balances)
+pprint("Balances")
+pprint(balances)
 
 post(f"http://{address}/quit")
