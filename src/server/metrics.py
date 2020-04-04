@@ -1,6 +1,6 @@
+from collections import defaultdict
 from threading import Lock
 from time import time
-from collections import defaultdict
 
 
 class AverageBlockTime:

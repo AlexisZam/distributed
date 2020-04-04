@@ -1,6 +1,5 @@
 from collections import defaultdict
 from copy import deepcopy
-from time import time
 
 import metrics
 import state
@@ -52,8 +51,8 @@ class Blockchain:
         ]
 
         state.blockchain = self
-        state.utxos = deepcopy(utxos)
         state.committed_utxos = utxos
+        state.utxos = deepcopy(utxos)
 
         state.block = Block()
         for transaction in transactions:

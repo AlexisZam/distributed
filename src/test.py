@@ -1,10 +1,10 @@
 #!/usr/bin/env python3.8
 
 from argparse import ArgumentParser
+from math import ceil
 from pickle import dumps, loads
 from pprint import pprint
 from time import sleep
-from math import ceil
 
 from requests import get, post
 

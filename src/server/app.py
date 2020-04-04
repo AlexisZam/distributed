@@ -1,12 +1,8 @@
 #!/usr/bin/env python3.8
 
-from collections import defaultdict
-from multiprocessing import Value
-from pickle import dumps, loads
-from threading import Thread
+from pickle import dumps, loads  # TODO json
 
-from flask import Flask, request, render_template
-from requests import get, post
+from flask import Flask, request
 
 import metrics
 import node

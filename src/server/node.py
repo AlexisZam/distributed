@@ -1,6 +1,6 @@
-from argparse import ArgumentParser
 from pickle import dumps, loads
 from threading import Lock
+
 from Cryptodome.PublicKey import RSA
 from requests import post
 
