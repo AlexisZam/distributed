@@ -15,11 +15,13 @@ args = parser.parse_args()
 address = f"{args.host}:{args.port}"
 n_nodes = args.n_nodes
 
+sleep(5)
+
 public_keys = loads(get(f"http://{address}/public_keys").content)
 index = loads(get(f"http://{address}/index").content)
 
 with open(
-    f"/home/alexiszam/Workspace/distributed/transactions/{(n_nodes // 5 + 1) * 5}nodes/transactions{index}.txt"
+    f"/home/user/distributed/transactions/{(n_nodes // 5 + 1) * 5}nodes/transactions{index}.txt"
 ) as f:
     for line in f:
         index, amount = map(int, line[2:].split())
