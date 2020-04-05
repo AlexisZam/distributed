@@ -19,6 +19,8 @@ n_nodes = args.n_nodes
 public_keys = loads(get(f"http://{address}/public_keys").content)
 index = loads(get(f"http://{address}/index").content)
 
+assert len(public_keys) == n_nodes
+
 for _ in range(3):
     balances = loads(get(f"http://{address}/balances").content)
     if all(balance == 100 for balance in balances):
