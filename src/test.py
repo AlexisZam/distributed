@@ -23,11 +23,11 @@ for _ in range(5):
     balances = loads(get(f"http://{address}/balances").content)
     if all(balance == 100 for balance in balances):
         break
-    sleep(5)
+    sleep(3)
 
 assert all(balance == 100 for balance in balances)
 
-sleep(5)
+sleep(15)
 
 with open(
     f"/home/user/distributed/transactions/{ceil(n_nodes / 5) * 5}nodes/transactions{index}.txt"
