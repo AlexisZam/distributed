@@ -42,6 +42,9 @@ class Transaction:
         if utxo_amount != amount:
             self.outputs["sender"] = utxo_amount - amount
 
+        from time import sleep
+
+        sleep(1)
         broadcast("/transaction/validate", self)
 
         # side effects
