@@ -42,7 +42,7 @@ class Transaction:
         if utxo_amount != amount:
             self.outputs["sender"] = utxo_amount - amount
 
-        Thread(target=broadcast, args=("/transaction/validate", self)).start()
+        broadcast("/transaction/validate", self)
 
         # side effects
         for tx_id in self.input:
