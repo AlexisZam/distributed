@@ -28,9 +28,9 @@ class AverageThroughput:
 
     def increment(self):
         with self.__lock:
-            self.__counter += 1
-            if self.__counter == N_NODES:
+            if self.__counter == N_NODES - 1:
                 self.__start = time()
+            self.__counter += 1
 
     def time(self):
         with self.__lock:
@@ -41,7 +41,7 @@ class AverageThroughput:
             return (
                 None
                 if self.__counter == 0
-                else self.__counter / (self.__finish - self.__start)
+                else (self.__counter - (N_NODES - 1)) / (self.__finish - self.__start)
             )
 
 

@@ -13,7 +13,7 @@ from utils import broadcast
 
 
 class Transaction:
-    def __init__(self, receiver_public_key, amount, wait=False):
+    def __init__(self, receiver_public_key, amount):
         print("Creating transaction")
 
         if receiver_public_key == node.public_key:
@@ -42,8 +42,13 @@ class Transaction:
         if utxo_amount != amount:
             self.outputs["sender"] = utxo_amount - amount
 
-        Thread(target=broadcast, args=["/transaction/validate", self]).start()
-        # broadcast("/transaction/validate", self)  # FIXME parallel
+        if (
+            node.index == 0
+            and metrics.statistics["transactions_created"] <= N_NODES - 1
+        ):
+            broadcast("/transaction/validate", self)
+        else:
+            Thread(target=broadcast, args=["/transaction/validate", self]).start()
 
         # side effects
         for tx_id in self.input:
