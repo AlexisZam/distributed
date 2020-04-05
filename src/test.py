@@ -19,9 +19,8 @@ n_nodes = args.n_nodes
 public_keys = loads(get(f"http://{address}/public_keys").content)
 index = loads(get(f"http://{address}/index").content)
 
-for _ in range(10):
+for _ in range(15):
     balances = loads(get(f"http://{address}/balances").content)
-    print(balances)
     if all(balance == 100 for balance in balances):
         break
     sleep(1)
