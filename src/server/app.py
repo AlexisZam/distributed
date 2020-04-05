@@ -56,16 +56,22 @@ def balance():
     return dumps(sum(state.utxos[node.public_key].values()))
 
 
+@app.route("/committed_balance")
+def committed_balance():
+    return dumps(sum(state.committed_utxos[node.public_key].values()))
+
+
 @app.route("/balances")
 def balances():
+    return dumps([sum(utxos.values()) for utxos in state.utxos.values()])
+
+
+@app.route("/committed_balances")
+def committed_balances():
     return dumps(
         [
-            {
-                "index": i,
-                "uncommitted": sum(state.utxos[public_key].values()),
-                "committed": sum(state.committed_utxos[public_key].values()),
-            }
-            for i, public_key in enumerate(node.public_keys)
+            sum(committed_utxos.values())
+            for committed_utxos in state.committed_utxos.values()
         ]
     )
 

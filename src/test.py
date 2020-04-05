@@ -19,6 +19,11 @@ n_nodes = args.n_nodes
 public_keys = loads(get(f"http://{address}/public_keys").content)
 index = loads(get(f"http://{address}/index").content)
 
+balance = loads(get(f"http://{address}/balance").content)
+assert balance == 100
+
+sleep(5)
+
 with open(
     f"/home/user/distributed/transactions/{ceil(n_nodes / 5) * 5}nodes/transactions{index}.txt"
 ) as f:
@@ -31,18 +36,23 @@ with open(
             )
 
 prev_balances = loads(get(f"http://{address}/balances").content)
-
+prev_committed_balances = loads(get(f"http://{address}/balances").content)
 n_equals = 0
 while True:
     sleep(60)
     curr_balances = loads(get(f"http://{address}/balances").content)
-    if curr_balances == loads(get(f"http://{address}/balances").content):
+    curr_committed_balances = loads(get(f"http://{address}/balances").content)
+    if (
+        curr_balances == prev_balances
+        and curr_committed_balances == prev_committed_balances
+    ):
         n_equals += 1
         if n_equals == 5:
             break
     else:
         n_equals = 0
     prev_balances = curr_balances
+    prev_committed_balances = curr_committed_balances
 
 average_block_time = loads(get(f"http://{address}/metrics/average_block_time").content)
 pprint("Average block time")
@@ -56,12 +66,14 @@ statistics = loads(get(f"http://{address}/metrics/statistics").content)
 pprint("Statistics")
 pprint(statistics)
 
-balance = loads(get(f"http://{address}/balance").content)
-pprint("Balance")
-pprint(balance)
-
 balances = loads(get(f"http://{address}/balances").content)
 pprint("Balances")
 pprint(balances)
+assert sum(balances) == n_nodes * 100
+
+committed_balances = loads(get(f"http://{address}/committed_balances").content)
+pprint("Committed balances")
+pprint(committed_balances)
+assert sum(committed_balances) == n_nodes * 100
 
 post(f"http://{address}/quit")
