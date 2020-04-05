@@ -30,7 +30,7 @@ for _ in range(3):
 print(balances)
 assert all(balance == 100 for balance in balances)
 
-sleep(60)
+sleep(10)
 
 with open(
     f"/home/user/distributed/transactions/{ceil(n_nodes / 5) * 5}nodes/transactions{index}.txt"
@@ -47,7 +47,7 @@ prev_balances = loads(get(f"http://{address}/balances").content)
 prev_committed_balances = loads(get(f"http://{address}/balances").content)
 n_equals = 0
 while True:
-    sleep(60)
+    sleep(10)
     curr_balances = loads(get(f"http://{address}/balances").content)
     curr_committed_balances = loads(get(f"http://{address}/balances").content)
     if (
