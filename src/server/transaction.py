@@ -42,7 +42,8 @@ class Transaction:
         if utxo_amount != amount:
             self.outputs["sender"] = utxo_amount - amount
 
-        broadcast("/transaction/validate", self)
+        # broadcast("/transaction/validate", self) FIXME
+        Thread(target=broadcast, args=("/transaction/validate", self)).start()
 
         # side effects
         for tx_id in self.input:
