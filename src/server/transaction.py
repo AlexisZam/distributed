@@ -48,7 +48,9 @@ class Transaction:
         ):
             broadcast("/transaction/validate", self)
         else:
-            Thread(target=broadcast, args=["/transaction/validate", self]).start()
+            Thread(
+                target=broadcast, args=["/transaction/validate", self]
+            ).start()  # FIXME more threads
 
         # side effects
         for tx_id in self.input:

@@ -27,6 +27,7 @@ for _ in range(3):
         break
     sleep(5)
 
+print(balances)
 assert all(balance == 100 for balance in balances)
 
 sleep(60)
