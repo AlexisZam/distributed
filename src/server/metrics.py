@@ -2,6 +2,8 @@ from collections import defaultdict
 from threading import Lock
 from time import time
 
+from config import N_NODES
+
 
 class AverageBlockTime:
     def __init__(self):
@@ -26,9 +28,9 @@ class AverageThroughput:
 
     def increment(self):
         with self.__lock:
-            if self.__counter == 0:
-                self.__start = time()
             self.__counter += 1
+            if self.__counter == N_NODES:
+                self.__start = time()
 
     def time(self):
         with self.__lock:

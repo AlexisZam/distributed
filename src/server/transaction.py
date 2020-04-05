@@ -42,10 +42,8 @@ class Transaction:
         if utxo_amount != amount:
             self.outputs["sender"] = utxo_amount - amount
 
-        from time import sleep
-
-        sleep(1)
-        broadcast("/transaction/validate", self)
+        Thread(target=broadcast, args=["/transaction/validate", self]).start()
+        # broadcast("/transaction/validate", self)  # FIXME parallel
 
         # side effects
         for tx_id in self.input:
