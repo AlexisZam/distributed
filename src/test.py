@@ -16,13 +16,16 @@ args = parser.parse_args()
 address = f"{args.host}:{args.port}"
 n_nodes = args.n_nodes
 
-sleep(5)
-
 public_keys = loads(get(f"http://{address}/public_keys").content)
 index = loads(get(f"http://{address}/index").content)
 
-balance = loads(get(f"http://{address}/balance").content)
-assert balance == 100
+for _ in range(10):
+    balances = loads(get(f"http://{address}/balances").content)
+    if all(balance == 100 for balance in balances):
+        break
+    sleep(1)
+
+assert all(balance == 100 for balance in balances)
 
 sleep(5)
 
