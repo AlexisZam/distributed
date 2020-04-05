@@ -19,15 +19,15 @@ n_nodes = args.n_nodes
 public_keys = loads(get(f"http://{address}/public_keys").content)
 index = loads(get(f"http://{address}/index").content)
 
-for _ in range(5):
+for _ in range(3):
     balances = loads(get(f"http://{address}/balances").content)
     if all(balance == 100 for balance in balances):
         break
-    sleep(3)
+    sleep(5)
 
 assert all(balance == 100 for balance in balances)
 
-sleep(15)
+sleep(60)
 
 with open(
     f"/home/user/distributed/transactions/{ceil(n_nodes / 5) * 5}nodes/transactions{index}.txt"
