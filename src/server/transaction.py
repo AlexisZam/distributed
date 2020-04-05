@@ -13,7 +13,7 @@ from utils import broadcast
 
 
 class Transaction:
-    def __init__(self, receiver_public_key, amount):
+    def __init__(self, receiver_public_key, amount, wait=False):
         print("Creating transaction")
 
         if receiver_public_key == node.public_key:
@@ -42,8 +42,7 @@ class Transaction:
         if utxo_amount != amount:
             self.outputs["sender"] = utxo_amount - amount
 
-        # broadcast("/transaction/validate", self) FIXME
-        Thread(target=broadcast, args=("/transaction/validate", self)).start()
+        broadcast("/transaction/validate", self)
 
         # side effects
         for tx_id in self.input:
