@@ -167,6 +167,9 @@ def quit():
     return ""
 
 
+from time import sleep
+
+sleep(1)
 Thread(target=app.run, kwargs={"host": HOST, "port": PORT}).start()
 if node.address != BOOTSTRAP_ADDRESS:
     post(f"http://{BOOTSTRAP_ADDRESS}/transaction", data=dumps((node.public_key, 100)))
