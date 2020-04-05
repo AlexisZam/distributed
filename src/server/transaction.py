@@ -1,4 +1,5 @@
 from pickle import dumps
+from threading import Thread
 
 from Cryptodome.Hash import SHA512
 from Cryptodome.PublicKey import RSA
@@ -41,7 +42,7 @@ class Transaction:
         if utxo_amount != amount:
             self.outputs["sender"] = utxo_amount - amount
 
-        broadcast("/transaction/validate", self)
+        Thread(target=broadcast, args=("/transaction/validate", self)).start()
 
         # side effects
         for tx_id in self.input:

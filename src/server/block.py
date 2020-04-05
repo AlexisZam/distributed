@@ -2,6 +2,7 @@ from copy import deepcopy
 from pickle import dumps, loads
 from random import random
 from time import time
+from threading import Thread
 
 from Cryptodome.Hash import SHA512
 from requests import get
@@ -40,7 +41,7 @@ class Block:
                     metrics.average_block_time.add(time() - self.timestamp)
                     break
 
-            broadcast("/block/validate", self)
+            Thread(target=broadcast, args=("/block/validate", self)).start()
 
             # side effects
             state.blockchain.add(self)

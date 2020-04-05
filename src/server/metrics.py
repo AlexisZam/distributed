@@ -16,7 +16,7 @@ class AverageBlockTime:
 
     def get(self):
         with self.__lock:
-            return self.__sum / self.__counter
+            return None if self.__counter == 0 else self.__sum / self.__counter
 
 
 class AverageThroughput:
@@ -36,7 +36,11 @@ class AverageThroughput:
 
     def get(self):
         with self.__lock:
-            return self.__counter / (self.__finish - self.__start)
+            return (
+                None
+                if self.__counter == 0
+                else self.__counter / (self.__finish - self.__start)
+            )
 
 
 average_block_time = AverageBlockTime()

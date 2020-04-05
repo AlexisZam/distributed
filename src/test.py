@@ -31,13 +31,17 @@ with open(
             )
 
 prev_balances = loads(get(f"http://{address}/balances").content)
+
+n_equals = 0
 while True:
-    sleep(5)
+    sleep(60)
     curr_balances = loads(get(f"http://{address}/balances").content)
-    if curr_balances == prev_balances:
-        sleep(60)
-        if curr_balances == loads(get(f"http://{address}/balances").content):
+    if curr_balances == loads(get(f"http://{address}/balances").content):
+        n_equals += 1
+        if n_equals == 5:
             break
+    else:
+        n_equals = 0
     prev_balances = curr_balances
 
 average_block_time = loads(get(f"http://{address}/metrics/average_block_time").content)
