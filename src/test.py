@@ -16,6 +16,8 @@ args = parser.parse_args()
 address = f"{args.host}:{args.port}"
 n_nodes = args.n_nodes
 
+sleep(5)
+
 public_keys = loads(get(f"http://{address}/public_keys").content)
 index = loads(get(f"http://{address}/index").content)
 
