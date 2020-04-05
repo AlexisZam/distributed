@@ -30,7 +30,7 @@ assert all(balance == 100 for balance in balances)
 sleep(5)
 
 with open(
-    f"/home/alexiszam/Workspace/distributed/transactions/{ceil(n_nodes / 5) * 5}nodes/transactions{index}.txt"
+    f"/home/user/distributed/transactions/{ceil(n_nodes / 5) * 5}nodes/transactions{index}.txt"
 ) as f:
     for line in f:
         index, amount = map(int, line[2:].split())
