@@ -65,15 +65,17 @@ def committed_balance():
 
 @app.route("/balances")
 def balances():
-    return dumps([sum(utxos.values()) for utxos in state.utxos.values()])
+    return dumps(
+        [sum(state.utxos[public_key].values()) for public_key in node.public_keys]
+    )
 
 
 @app.route("/committed_balances")
 def committed_balances():
     return dumps(
         [
-            sum(committed_utxos.values())
-            for committed_utxos in state.committed_utxos.values()
+            sum(state.committed_utxos[public_key].values())
+            for public_key in node.public_keys
         ]
     )
 
@@ -169,7 +171,7 @@ def quit():
 
 from time import sleep
 
-sleep(1)
 Thread(target=app.run, kwargs={"host": HOST, "port": PORT}).start()
 if node.address != BOOTSTRAP_ADDRESS:
+    sleep(1)
     post(f"http://{BOOTSTRAP_ADDRESS}/transaction", data=dumps((node.public_key, 100)))
