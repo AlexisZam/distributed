@@ -21,6 +21,7 @@ index = loads(get(f"http://{address}/index").content)
 
 for _ in range(10):
     balances = loads(get(f"http://{address}/balances").content)
+    print(balances)
     if all(balance == 100 for balance in balances):
         break
     sleep(1)
