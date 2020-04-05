@@ -1,5 +1,4 @@
 from pickle import dumps
-from threading import Thread
 
 from requests import post
 
