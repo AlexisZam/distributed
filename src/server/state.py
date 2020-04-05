@@ -21,8 +21,3 @@ if node.address == BOOTSTRAP_ADDRESS:
 else:
     blockchain = loads(get(f"http://{BOOTSTRAP_ADDRESS}/blockchain").content)
     blockchain.validate()
-    Thread(
-        target=post,
-        args=[f"http://{BOOTSTRAP_ADDRESS}/transaction"],
-        kwargs={"data": dumps((node.public_key, 100))},
-    ).start()  # FIXME

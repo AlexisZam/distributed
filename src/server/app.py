@@ -3,6 +3,8 @@
 from pickle import dumps, loads  # TODO json
 
 from flask import Flask, request
+from threading import Thread
+from requests import post
 
 import metrics
 import node
@@ -165,4 +167,6 @@ def quit():
     return ""
 
 
-app.run(host=HOST, port=PORT)
+Thread(target=app.run, kwargs={"host": HOST, "port": PORT}).start()
+if node.address != BOOTSTRAP_ADDRESS:
+    post(f"http://{BOOTSTRAP_ADDRESS}/transaction", data=dumps((node.public_key, 100)))
