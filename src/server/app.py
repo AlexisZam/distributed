@@ -106,7 +106,7 @@ def view():
 
 @app.route("/busy")
 def busy():
-    return jsonify(state.busy)
+    return jsonify(state.lock.locked())
 
 
 # Get metrics
@@ -138,13 +138,8 @@ def transaction():
     metrics.average_throughput.increment()
 
     with state.lock:
-        state.busy = True
-        try:
-            Transaction(json["receiver_public_key"], json["amount"])
-        finally:
-            state.busy = False
+        Transaction(json["receiver_public_key"], json["amount"])
     metrics.statistics["transactions_created"] += 1
-    state.busy = False
     return ""
 
 
@@ -156,11 +151,7 @@ def transaction_validate():
     metrics.average_throughput.increment()
 
     with state.lock:
-        state.busy = True
-        try:
-            transaction.validate(state.utxos)
-        finally:
-            state.busy = False
+        transaction.validate(state.utxos)
     metrics.statistics["transactions_validated"] += 1
     return ""
 
@@ -171,16 +162,13 @@ def block_validate():
     block = loads(request.get_data())
     state.validating_block.set()
     with state.lock:
-        state.busy = True
         try:
             block.validate()
         except:
             state.validating_block.clear()
             state.block.mine()
-        finally:
-            state.busy = False
-    metrics.statistics["blocks_validated"] += 1
     state.validating_block.clear()
+    metrics.statistics["blocks_validated"] += 1
     return ""
 
 
