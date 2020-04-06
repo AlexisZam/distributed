@@ -31,7 +31,7 @@ class Block:
 
             self.timestamp = time()
             while True:
-                if state.validating.is_set():
+                if state.validating_block.is_set():
                     print("Block creation failed")
                     return
                 self.nonce = random()

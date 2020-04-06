@@ -107,7 +107,7 @@ def view():
 
 @app.route("/busy")
 def busy():
-    return (
+    return dumps(
         state.creating_transaction
         or state.validating_transaction
         or state.validating_block.is_set()
