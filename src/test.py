@@ -60,7 +60,7 @@ while True:
         and curr_committed_balances == prev_committed_balances
     ):
         n_equals += 1
-        if n_equals == 10:
+        if n_equals == 3:
             break
     else:
         n_equals = 0

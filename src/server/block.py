@@ -1,10 +1,10 @@
 from copy import deepcopy
+from hashlib import blake2b
 from pickle import dumps, loads
 from random import random
-from time import time
 from threading import Thread
+from time import time
 
-from Cryptodome.Hash import SHA512
 from requests import get
 
 import metrics
@@ -97,7 +97,7 @@ class Block:
             self.previous_hash,
             self.nonce,
         )
-        return SHA512.new(data=dumps(data))
+        return blake2b(dumps(data))
 
     # FIXME might go on forever
     # TODO check with block headers, resolve conflict from check failure onwards
