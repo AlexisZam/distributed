@@ -2,7 +2,6 @@
 
 from argparse import ArgumentParser
 from math import ceil
-from pickle import dumps, loads
 from pprint import pprint
 from time import sleep
 
@@ -53,7 +52,7 @@ sleep(5)
 
 index = get(f"http://{args.address}/index").json()
 with open(
-    f"/home/alexiszam/Workspace/distributed/transactions/{ceil(args.n_nodes / 5) * 5}nodes/transactions{index}.txt"
+    f"/home/user/distributed/transactions/{ceil(args.n_nodes / 5) * 5}nodes/transactions{index}.txt"
 ) as f:
     for line in f:
         index, amount = map(int, line[2:].split())
