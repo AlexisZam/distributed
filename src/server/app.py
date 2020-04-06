@@ -50,6 +50,11 @@ def public_keys():
     return dumps(node.public_keys)
 
 
+@app.route("/addresses")
+def addresses():
+    return dumps(node.addresses)
+
+
 # Get state
 
 

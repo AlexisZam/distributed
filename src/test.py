@@ -21,14 +21,19 @@ index = loads(get(f"http://{address}/index").content)
 
 assert len(public_keys) == n_nodes
 
-for _ in range(10):
-    balances = loads(get(f"http://{address}/balances").content)
-    if all(balance == 100 for balance in balances):
-        break
-    sleep(10)
+addresses = loads(get(f"http://{address}/addresses").content)
 
-print(balances)
-assert all(balance == 100 for balance in balances)
+while True:
+    if all(
+        all(
+            balance == 100
+            for balance in loads(get(f"http://{address}/balances").content)
+        )
+        for address in addresses
+    ):
+        break
+    sleep(5)
+
 
 sleep(30)
 
@@ -47,7 +52,7 @@ prev_balances = loads(get(f"http://{address}/balances").content)
 prev_committed_balances = loads(get(f"http://{address}/balances").content)
 n_equals = 0
 while True:
-    sleep(10)
+    sleep(60)
     curr_balances = loads(get(f"http://{address}/balances").content)
     curr_committed_balances = loads(get(f"http://{address}/balances").content)
     if (
@@ -55,7 +60,7 @@ while True:
         and curr_committed_balances == prev_committed_balances
     ):
         n_equals += 1
-        if n_equals == 6:
+        if n_equals == 10:
             break
     else:
         n_equals = 0
