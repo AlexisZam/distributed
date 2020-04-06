@@ -21,7 +21,7 @@ index = loads(get(f"http://{address}/index").content)
 
 assert len(public_keys) == n_nodes
 
-for _ in range(5):
+for _ in range(10):
     balances = loads(get(f"http://{address}/balances").content)
     if all(balance == 100 for balance in balances):
         break
@@ -30,7 +30,7 @@ for _ in range(5):
 print(balances)
 assert all(balance == 100 for balance in balances)
 
-sleep(60)
+sleep(300)
 
 with open(
     f"/home/user/distributed/transactions/{ceil(n_nodes / 5) * 5}nodes/transactions{index}.txt"
@@ -55,7 +55,7 @@ while True:
         and curr_committed_balances == prev_committed_balances
     ):
         n_equals += 1
-        if n_equals == 5:
+        if n_equals == 10:
             break
     else:
         n_equals = 0
