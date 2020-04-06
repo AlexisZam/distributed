@@ -25,11 +25,14 @@ class Block:
 
     def mine(self):
         if len(self.transactions) == CAPACITY:
+            print("Creating block")
+
             self.previous_hash = state.blockchain.blocks[-1].current_hash
 
             self.timestamp = time()
             while True:
-                if state.validating_block.is_set():
+                if state.validating.is_set():
+                    print("Block creation failed")
                     return
                 self.nonce = random()
                 self.current_hash = self.hash().hexdigest()
@@ -46,8 +49,11 @@ class Block:
             state.block = Block()
 
             metrics.statistics["blocks_created"] += 1
+            print("Block created")
 
     def validate(self):
+        print("Validating block")
+
         if len(self.transactions) != CAPACITY:
             raise Exception("invalid capacity")
         h = self.hash().hexdigest()
@@ -57,9 +63,11 @@ class Block:
             raise Exception("invalid proof of work")
 
         if self.previous_hash != state.blockchain.blocks[-1].current_hash:
+            print("Block validation failed")
             if self.previous_hash in [
                 block.current_hash for block in state.blockchain.blocks[:-1]
             ]:
+                print("block from shorter (or equal) blockchain")
                 return
             Block.__resolve_conflict()
             return
@@ -80,6 +88,7 @@ class Block:
                 transaction.validate(state.utxos)
 
         metrics.statistics["blocks_validated"] += 1
+        print("Block validated")
 
     def hash(self):
         data = (
@@ -94,6 +103,8 @@ class Block:
     # TODO check with block headers, resolve conflict from check failure onwards
     @staticmethod
     def __resolve_conflict():
+        print("Resolving conflict")
+
         while True:
             blockchain_lengths_addresses = [
                 (loads(get(f"http://{address}/blockchain/length").content), address)
@@ -111,10 +122,13 @@ class Block:
                 break
 
         metrics.statistics["conflicts_resolved"] += 1
+        print("Conflict resolved")
 
 
 class GenesisBlock(Block):
     def __init__(self):
+        print("Creating block")
+
         self.transactions = [GenesisTransaction()]
         self.timestamp = time()
         self.current_hash = 0
@@ -122,3 +136,5 @@ class GenesisBlock(Block):
 
         # side effects
         state.block = Block()
+
+        print("Block created")

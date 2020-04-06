@@ -1,12 +1,15 @@
-from pickle import dumps, loads
-from threading import Lock
+#!/usr/bin/env python3.8
 
-from flask import Flask, jsonify, request
+from pickle import dumps, loads  # TODO json
+
+from flask import Flask, request
+from threading import Thread
+from requests import post
 
 import metrics
 import node
 import state
-from config import BOOTSTRAP_ADDRESS, N_NODES
+from config import BOOTSTRAP_ADDRESS, HOST, N_NODES, PORT
 from transaction import Transaction
 
 app = Flask(__name__)
@@ -15,20 +18,18 @@ app = Flask(__name__)
 
 if node.address == BOOTSTRAP_ADDRESS:
 
-    lock = Lock()
-
     @app.route("/login", methods=["POST"])
     def login():
-        json = request.get_json()
-        with lock:
+        address, public_key = loads(request.get_data())
+        with node.lock:
             index = len(node.public_keys)
-            node.addresses.append(json["address"])
-            node.public_keys.append(json["public_key"])
+            node.addresses.append(address)
+            node.public_keys.append(public_key)
 
         while True:
-            with lock:
+            with node.lock:
                 if len(node.public_keys) == N_NODES:
-                    return jsonify(index, node.addresses, node.public_keys)
+                    return dumps((index, node.addresses, node.public_keys))
 
 
 # Get node
@@ -36,22 +37,17 @@ if node.address == BOOTSTRAP_ADDRESS:
 
 @app.route("/index")
 def index():
-    return jsonify(node.index)
+    return dumps(node.index)
 
 
 @app.route("/nodes/<index>/public_key")
 def public_key(index):
-    return jsonify(node.public_keys[int(index)])
+    return dumps(node.public_keys[int(index)])
 
 
 @app.route("/public_keys")
 def public_keys():
-    return jsonify(node.public_keys)
-
-
-@app.route("/addresses")
-def addresses():
-    return jsonify(node.addresses)
+    return dumps(node.public_keys)
 
 
 # Get state
@@ -59,24 +55,24 @@ def addresses():
 
 @app.route("/balance")
 def balance():
-    return jsonify(sum(state.utxos[node.public_key].values()))
+    return dumps(sum(state.utxos[node.public_key].values()))
 
 
 @app.route("/committed_balance")
 def committed_balance():
-    return jsonify(sum(state.committed_utxos[node.public_key].values()))
+    return dumps(sum(state.committed_utxos[node.public_key].values()))
 
 
 @app.route("/balances")
 def balances():
-    return jsonify(
+    return dumps(
         [sum(state.utxos[public_key].values()) for public_key in node.public_keys]
     )
 
 
 @app.route("/committed_balances")
 def committed_balances():
-    return jsonify(
+    return dumps(
         [
             sum(state.committed_utxos[public_key].values())
             for public_key in node.public_keys
@@ -96,7 +92,7 @@ def blockchain_length():
 
 @app.route("/blockchain/top/transactions")
 def view():
-    return jsonify(
+    return dumps(
         [
             transaction.__dict__
             for transaction in state.blockchain.blocks[-1].transactions
@@ -104,27 +100,22 @@ def view():
     )
 
 
-@app.route("/busy")
-def busy():
-    return jsonify(state.lock.locked())
-
-
 # Get metrics
 
 
 @app.route("/metrics/average_throughput")
 def average_throughput():
-    return jsonify(metrics.average_throughput.get())
+    return dumps(metrics.average_throughput.get())
 
 
 @app.route("/metrics/average_block_time")
 def average_block_time():
-    return jsonify(metrics.average_block_time.get())
+    return dumps(metrics.average_block_time.get())
 
 
 @app.route("/metrics/statistics")
 def statistics():
-    return jsonify(metrics.statistics)
+    return dumps(metrics.statistics)
 
 
 # Post
@@ -132,14 +123,13 @@ def statistics():
 # TODO authorize this view
 @app.route("/transaction", methods=["POST"])
 def transaction():
-    json = request.get_json()
+    receiver_public_key, amount = loads(request.get_data())
 
     # metrics
     metrics.average_throughput.increment()
 
     with state.lock:
-        Transaction(json["receiver_public_key"], json["amount"])
-    metrics.statistics["transactions_created"] += 1
+        Transaction(receiver_public_key, amount)
     return ""
 
 
@@ -152,7 +142,6 @@ def transaction_validate():
 
     with state.lock:
         transaction.validate(state.utxos)
-    metrics.statistics["transactions_validated"] += 1
     return ""
 
 
@@ -160,15 +149,14 @@ def transaction_validate():
 @app.route("/block/validate", methods=["POST"])
 def block_validate():
     block = loads(request.get_data())
-    state.validating_block.set()
+    state.validating.set()
     with state.lock:
         try:
             block.validate()
         except:
-            state.validating_block.clear()
+            state.validating.clear()
             state.block.mine()
-    state.validating_block.clear()
-    metrics.statistics["blocks_validated"] += 1
+    state.validating.clear()
     return ""
 
 
@@ -179,3 +167,11 @@ def block_validate():
 def quit():
     request.environ.get("werkzeug.server.shutdown")()
     return ""
+
+
+from time import sleep
+
+Thread(target=app.run, kwargs={"host": HOST, "port": PORT}).start()
+if node.address != BOOTSTRAP_ADDRESS:
+    sleep(1)
+    post(f"http://{BOOTSTRAP_ADDRESS}/transaction", data=dumps((node.public_key, 100)))

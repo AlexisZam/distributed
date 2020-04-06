@@ -10,12 +10,11 @@ from blockchain import Blockchain
 from config import BOOTSTRAP_ADDRESS
 
 lock = Lock()
-
 block = Block()
 utxos = defaultdict(dict)
 committed_utxos = defaultdict(dict)
 
-validating_block = Event()
+validating = Event()
 
 if node.address == BOOTSTRAP_ADDRESS:
     blockchain = Blockchain()

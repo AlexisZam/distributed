@@ -9,12 +9,15 @@ from config import DIFFICULTY
 
 class Blockchain:
     def __init__(self):
+        print("Creating blockchain")
+
         self.blocks = [GenesisBlock()]
 
         # side effects
         state.blockchain = self
 
         metrics.statistics["blockchains_created"] += 1
+        print("Blockchain created")
 
     def add(self, block):
         self.blocks.append(block)
@@ -23,6 +26,8 @@ class Blockchain:
         metrics.average_throughput.time()
 
     def validate(self):
+        print("Validating blockchain")
+
         previous = self.blocks[0]
         for block in self.blocks[1:]:
             if block.previous_hash != previous.current_hash:
@@ -59,3 +64,4 @@ class Blockchain:
                 transaction.validate(state.utxos)
 
         metrics.statistics["blockchains_validated"] += 1
+        print("Blockchain validated")

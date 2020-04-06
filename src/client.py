@@ -8,7 +8,7 @@ from pprint import pprint
 
 from requests import get, post
 
-# FIXME doesnt work with json
+
 class REPL(Cmd):
     intro = 'Noobcash 1.0\nType "help" for more information.'
     prompt = ">>> "
@@ -45,6 +45,28 @@ class REPL(Cmd):
             "help",
             sep="\n",
         )
+
+    # FIXME delete hereafter
+
+    def do_balances(self, _):
+        balances = loads(get(f"http://{address}/balances").content)
+        pprint(balances)
+
+    def do_average_throughput(self, _):
+        average_throughput = loads(
+            get(f"http://{address}/metrics/average_throughput").content
+        )
+        pprint(average_throughput)
+
+    def do_average_block_time(self, _):
+        average_block_time = loads(
+            get(f"http://{address}/metrics/average_block_time").content
+        )
+        pprint(average_block_time)
+
+    def do_statistics(self, _):
+        statistics = loads(get(f"http://{address}/metrics/statistics").content)
+        pprint(statistics)
 
 
 parser = ArgumentParser(add_help=False)
