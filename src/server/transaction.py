@@ -45,7 +45,7 @@ class Transaction:
         broadcast(
             "/transaction/validate",
             self,
-            wait=(
+            threaded=not (
                 node.index == 0
                 and metrics.statistics["transactions_created"] <= N_NODES - 1
             ),

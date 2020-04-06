@@ -50,6 +50,11 @@ def public_keys():
     return dumps(node.public_keys)
 
 
+@app.route("/addresses")
+def addresses():
+    return dumps(node.addresses)
+
+
 # Get state
 
 
@@ -100,6 +105,15 @@ def view():
     )
 
 
+@app.route("/busy")
+def busy():
+    return (
+        state.creating_transaction
+        or state.validating_transaction
+        or state.validating_block.is_set()
+    )
+
+
 # Get metrics
 
 
@@ -129,7 +143,9 @@ def transaction():
     metrics.average_throughput.increment()
 
     with state.lock:
+        state.creating_transaction = True
         Transaction(receiver_public_key, amount)
+        state.creating_transaction = False
     return ""
 
 
@@ -141,7 +157,9 @@ def transaction_validate():
     metrics.average_throughput.increment()
 
     with state.lock:
+        state.validating_transaction = True
         transaction.validate(state.utxos)
+        state.validating_transaction = False
     return ""
 
 

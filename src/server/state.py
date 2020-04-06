@@ -14,7 +14,9 @@ block = Block()
 utxos = defaultdict(dict)
 committed_utxos = defaultdict(dict)
 
-validating = Event()
+creating_transaction = False
+validating_transaction = True
+validating_block = Event()
 
 if node.address == BOOTSTRAP_ADDRESS:
     blockchain = Blockchain()
