@@ -49,18 +49,18 @@ with open(
             )
 
 prev_balances = loads(get(f"http://{address}/balances").content)
-prev_committed_balances = loads(get(f"http://{address}/balances").content)
+prev_committed_balances = loads(get(f"http://{address}/committed_balances").content)
 n_equals = 0
 while True:
     sleep(60)
     curr_balances = loads(get(f"http://{address}/balances").content)
-    curr_committed_balances = loads(get(f"http://{address}/balances").content)
+    curr_committed_balances = loads(get(f"http://{address}/committed_balances").content)
     if (
         curr_balances == prev_balances
         and curr_committed_balances == prev_committed_balances
     ):
         n_equals += 1
-        if n_equals == 3:
+        if n_equals == 5:
             break
     else:
         n_equals = 0
