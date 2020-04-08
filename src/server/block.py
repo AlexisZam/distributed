@@ -1,8 +1,7 @@
 from copy import deepcopy
 from hashlib import blake2b
-from pickle import loads
+from pickle import dumps, loads
 from random import random
-from struct import pack
 from time import time
 
 from requests import get
@@ -27,18 +26,18 @@ class Block:
         if len(self.transactions) == config.CAPACITY:
             self.previous_hash = state.blockchain.blocks[-1].current_hash
 
-            self.timestamp = int(time())  # FIXME
-
+            self.timestamp = time()
             h = self.hash()
             while True:
                 if state.validating_block.is_set():
                     return
-                nonce = random()  # FIXME
+                nonce = random()
                 h_copy = h.copy()
-                h_copy.update(bytearray(pack("f", nonce)))
-                if int(h_copy.hexdigest()[: config.DIFFICULTY], base=16) == 0:
+                h_copy.update(dumps(nonce))
+                current_hash = h.hexdigest()
+                if int(current_hash[: config.DIFFICULTY], base=16) == 0:
                     self.nonce = nonce
-                    self.current_hash = h_copy.digest()
+                    self.current_hash = current_hash
                     metrics.average_block_time.add(time() - self.timestamp)
                     break
             broadcast("/block/validate", self)
@@ -55,7 +54,7 @@ class Block:
             raise Exception("invalid capacity")
 
         current_hash = self.hash().hexdigest()
-        if current_hash != self.current_hash.hex():
+        if current_hash != self.current_hash:
             raise Exception("invalid block hash")
         if int(current_hash[: config.DIFFICULTY], base=16) != 0:
             raise Exception("invalid proof of work")
@@ -87,12 +86,12 @@ class Block:
 
     def hash(self):
         h = blake2b(
-            self.previous_hash
-            + b"".join(tx.id for tx in self.transactions)
-            + bytearray(self.timestamp)
+            dumps(
+                [tx.id for tx in self.transactions], self.timestamp, self.previous_hash,
+            )
         )
         if hasattr(self, "nonce"):
-            h.update(bytearray(pack("f", self.nonce)))
+            h.update(dumps(self.nonce))
         return h
 
     # FIXME might go on forever
@@ -110,8 +109,8 @@ class Block:
                 if max_length >= len(state.blockchain.blocks):
                     try:
                         blockchain.validate()
-                    except Exception:
-                        pass
+                    except:
+                        continue
                 break
 
         metrics.statistics["conflicts_resolved"] += 1
@@ -121,7 +120,7 @@ class GenesisBlock(Block):
     def __init__(self):
         self.transactions = [GenesisTransaction()]
         self.timestamp = time()
-        self.current_hash = b""
+        self.current_hash = 0
         self.index = 0
 
         # side effects

@@ -1,4 +1,5 @@
-from marshal import dumps
+from pickle import dumps
+from threading import Thread
 
 from Cryptodome.Hash import BLAKE2b
 from Cryptodome.PublicKey import RSA
@@ -32,7 +33,7 @@ class Transaction:
             raise ValueError("insufficient amount")
 
         h = self.hash()
-        self.id = h.digest()
+        self.id = h.hexdigest()
         self.signature = PKCS1_v1_5.new(node.private_key).sign(h)
 
         self.outputs = {"receiver": amount}
@@ -82,24 +83,21 @@ class Transaction:
             state.block.add(self)
 
     def hash(self):
-        return BLAKE2b.new(
-            data=self.sender_public_key.encode()
-            + self.receiver_public_key.encode()
-            + b"".join(self.input)
-        )
+        data = (self.sender_public_key, self.receiver_public_key, self.input)
+        return BLAKE2b.new(data=dumps(data))
 
 
 class GenesisTransaction(Transaction):
     def __init__(self):
         self.receiver_public_key = node.public_key
-        self.id = self.hash().digest()
+        self.id = self.hash().hexdigest()
         self.outputs = {"receiver": 100 * config.N_NODES}
 
         # side effects
         state.utxos[self.receiver_public_key][self.id] = self.outputs["receiver"]
 
     def hash(self):
-        return BLAKE2b.new(data=self.receiver_public_key.encode())
+        return BLAKE2b.new(data=dumps(self.receiver_public_key))
 
     def validate(self, utxos, validate_block=False):
         # side effects
