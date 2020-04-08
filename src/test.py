@@ -27,7 +27,7 @@ while True:
         break
     sleep(5)
 
-sleep(5)
+sleep(10)
 
 index = get(f"http://{address}/index").json()
 
