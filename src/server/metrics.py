@@ -7,41 +7,41 @@ from config import N_NODES
 
 class AverageBlockTime:
     def __init__(self):
-        self.__lock = Lock()
-        self.__sum = 0
-        self.__counter = 0
+        self.lock = Lock()
+        self.sum = 0
+        self.counter = 0
 
     def add(self, block_time):
-        with self.__lock:
-            self.__sum += block_time
-            self.__counter += 1
+        with self.lock:
+            self.sum += block_time
+            self.counter += 1
 
     def get(self):
-        with self.__lock:
-            return None if self.__counter == 0 else self.__sum / self.__counter
+        with self.lock:
+            return None if self.counter == 0 else self.sum / self.counter
 
 
 class AverageThroughput:
     def __init__(self):
-        self.__lock = Lock()
-        self.__counter = 0
+        self.lock = Lock()
+        self.counter = 0
 
     def increment(self):
-        with self.__lock:
-            if self.__counter == N_NODES - 1:
-                self.__start = time()
-            self.__counter += 1
+        with self.lock:
+            if self.counter == N_NODES - 1:
+                self.start = time()
+            self.counter += 1
 
     def time(self):
-        with self.__lock:
-            self.__finish = time()
+        with self.lock:
+            self.finish = time()
 
     def get(self):
-        with self.__lock:
+        with self.lock:
             return (
                 None
-                if self.__counter == 0
-                else (self.__counter - (N_NODES - 1)) / (self.__finish - self.__start)
+                if self.counter == 0
+                else (self.counter - (N_NODES - 1)) / (self.finish - self.start)
             )
 
 

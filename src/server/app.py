@@ -1,35 +1,38 @@
 #!/usr/bin/env python3.8
 
-from pickle import dumps, loads  # TODO json
+from pickle import dumps, loads
+from threading import Barrier, Lock, Thread
+from time import sleep
 
-from flask import Flask, request
-from threading import Thread
+from flask import Flask, jsonify, request
 from requests import post
 
+import config
 import metrics
 import node
 import state
-from config import BOOTSTRAP_ADDRESS, HOST, N_NODES, PORT
 from transaction import Transaction
 
 app = Flask(__name__)
 
+lock = Lock()
+
 # Login
 
-if node.address == BOOTSTRAP_ADDRESS:
+if node.address == config.BOOTSTRAP_ADDRESS:
+
+    barrier = Barrier(config.N_NODES - 1)
 
     @app.route("/login", methods=["POST"])
     def login():
-        address, public_key = loads(request.get_data())
-        with node.lock:
+        json = request.get_json()
+        with lock:
             index = len(node.public_keys)
-            node.addresses.append(address)
-            node.public_keys.append(public_key)
+            node.addresses.append(json["address"])
+            node.public_keys.append(json["public_key"])
 
-        while True:
-            with node.lock:
-                if len(node.public_keys) == N_NODES:
-                    return dumps((index, node.addresses, node.public_keys))
+        barrier.wait()
+        return jsonify(index, node.addresses, node.public_keys)
 
 
 # Get node
@@ -37,22 +40,22 @@ if node.address == BOOTSTRAP_ADDRESS:
 
 @app.route("/index")
 def index():
-    return dumps(node.index)
+    return jsonify(node.index)
 
 
 @app.route("/nodes/<index>/public_key")
 def public_key(index):
-    return dumps(node.public_keys[int(index)])
+    return jsonify(node.public_keys[int(index)])
 
 
 @app.route("/public_keys")
 def public_keys():
-    return dumps(node.public_keys)
+    return jsonify(node.public_keys)
 
 
 @app.route("/addresses")
 def addresses():
-    return dumps(node.addresses)
+    return jsonify(node.addresses)
 
 
 # Get state
@@ -60,24 +63,24 @@ def addresses():
 
 @app.route("/balance")
 def balance():
-    return dumps(sum(state.utxos[node.public_key].values()))
+    return jsonify(sum(state.utxos[node.public_key].values()))
 
 
 @app.route("/committed_balance")
 def committed_balance():
-    return dumps(sum(state.committed_utxos[node.public_key].values()))
+    return jsonify(sum(state.committed_utxos[node.public_key].values()))
 
 
 @app.route("/balances")
 def balances():
-    return dumps(
+    return jsonify(
         [sum(state.utxos[public_key].values()) for public_key in node.public_keys]
     )
 
 
 @app.route("/committed_balances")
 def committed_balances():
-    return dumps(
+    return jsonify(
         [
             sum(state.committed_utxos[public_key].values())
             for public_key in node.public_keys
@@ -92,14 +95,14 @@ def blockchain():
 
 @app.route("/blockchain/length")
 def blockchain_length():
-    return dumps(len(state.blockchain.blocks))
+    return jsonify(len(state.blockchain.blocks))
 
 
-@app.route("/blockchain/top/transactions")
-def view():
-    return dumps(
+@app.route("/blockchain/blocks/last")
+def blockchain_blocks_last():
+    return jsonify(
         [
-            transaction.__dict__
+            transaction.__dict__  # FIXME
             for transaction in state.blockchain.blocks[-1].transactions
         ]
     )
@@ -110,17 +113,17 @@ def view():
 
 @app.route("/metrics/average_throughput")
 def average_throughput():
-    return dumps(metrics.average_throughput.get())
+    return jsonify(metrics.average_throughput.get())
 
 
 @app.route("/metrics/average_block_time")
 def average_block_time():
-    return dumps(metrics.average_block_time.get())
+    return jsonify(metrics.average_block_time.get())
 
 
 @app.route("/metrics/statistics")
 def statistics():
-    return dumps(metrics.statistics)
+    return jsonify(metrics.statistics)
 
 
 # Post
@@ -128,13 +131,14 @@ def statistics():
 # TODO authorize this view
 @app.route("/transaction", methods=["POST"])
 def transaction():
-    receiver_public_key, amount = loads(request.get_data())
+    json = request.get_json()
 
-    # metrics
     metrics.average_throughput.increment()
 
-    with state.lock:
-        Transaction(receiver_public_key, amount)
+    with lock:
+        Transaction(json["receiver_public_key"], json["amount"])
+
+    metrics.statistics["transactions_created"] += 1
     return ""
 
 
@@ -142,11 +146,12 @@ def transaction():
 def transaction_validate():
     transaction = loads(request.get_data())
 
-    # metrics
     metrics.average_throughput.increment()
 
-    with state.lock:
+    with lock:
         transaction.validate(state.utxos)
+
+    metrics.statistics["transactions_validated"] += 1
     return ""
 
 
@@ -154,14 +159,14 @@ def transaction_validate():
 @app.route("/block/validate", methods=["POST"])
 def block_validate():
     block = loads(request.get_data())
-    state.validating.set()
-    with state.lock:
+    state.validating_block.set()
+    with lock:
         try:
             block.validate()
-        except:
-            state.validating.clear()
+        except Exception:
+            state.validating_block.clear()
             state.block.mine()
-    state.validating.clear()
+    state.validating_block.clear()
     return ""
 
 
@@ -174,9 +179,12 @@ def quit():
     return ""
 
 
-from time import sleep
+Thread(target=app.run, kwargs={"host": config.HOST, "port": config.PORT}).start()
 
-Thread(target=app.run, kwargs={"host": HOST, "port": PORT}).start()
-if node.address != BOOTSTRAP_ADDRESS:
+if node.address != config.BOOTSTRAP_ADDRESS:
     sleep(1)
-    post(f"http://{BOOTSTRAP_ADDRESS}/transaction", data=dumps((node.public_key, 100)))
+
+    post(
+        f"http://{config.BOOTSTRAP_ADDRESS}/transaction",
+        json={"receiver_public_key": node.public_key, "amount": 100},
+    )

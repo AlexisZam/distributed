@@ -2,8 +2,6 @@
 
 from argparse import ArgumentParser
 from math import ceil
-from pickle import dumps, loads
-from pprint import pprint
 from time import sleep
 
 from requests import get, post
@@ -14,79 +12,70 @@ parser.add_argument("-p", "--port", default=5000, type=int)
 parser.add_argument("-n", "--n_nodes", default=1, type=int)
 args = parser.parse_args()
 address = f"{args.host}:{args.port}"
-n_nodes = args.n_nodes
-
-public_keys = loads(get(f"http://{address}/public_keys").content)
-index = loads(get(f"http://{address}/index").content)
-
-assert len(public_keys) == n_nodes
-
-addresses = loads(get(f"http://{address}/addresses").content)
 
 while True:
+    public_keys = get(f"http://{address}/public_keys").json()
+    if len(public_keys) == args.n_nodes:
+        break
+
+addresses = get(f"http://{address}/addresses").json()
+while True:
     if all(
-        all(
-            balance == 100
-            for balance in loads(get(f"http://{address}/balances").content)
-        )
+        all(balance == 100 for balance in get(f"http://{address}/balances").json())
         for address in addresses
     ):
         break
     sleep(5)
 
+sleep(5)
 
-sleep(30)
+index = get(f"http://{address}/index").json()
 
 with open(
-    f"/home/user/distributed/transactions/{ceil(n_nodes / 5) * 5}nodes/transactions{index}.txt"
+    f"/home/user/distributed/transactions/{ceil(args.n_nodes / 5) * 5}nodes/transactions{index}.txt"
 ) as f:
     for line in f:
         index, amount = map(int, line[2:].split())
-        if index < n_nodes:
+        if index < args.n_nodes:
             post(
                 f"http://{address}/transaction",
-                data=dumps((public_keys[index], amount)),
+                json={"receiver_public_key": public_keys[index], "amount": amount},
             )
 
-prev_balances = loads(get(f"http://{address}/balances").content)
-prev_committed_balances = loads(get(f"http://{address}/balances").content)
+prev_balances = get(f"http://{address}/balances").json()
+prev_committed_balances = get(f"http://{address}/committed_balances").json()
 n_equals = 0
 while True:
     sleep(60)
-    curr_balances = loads(get(f"http://{address}/balances").content)
-    curr_committed_balances = loads(get(f"http://{address}/balances").content)
+    curr_balances = get(f"http://{address}/balances").json()
+    curr_committed_balances = get(f"http://{address}/committed_balances").json()
     if (
         curr_balances == prev_balances
         and curr_committed_balances == prev_committed_balances
     ):
         n_equals += 1
-        if n_equals == 3:
+        if n_equals == 5:
             break
     else:
         n_equals = 0
     prev_balances = curr_balances
     prev_committed_balances = curr_committed_balances
 
-average_block_time = loads(get(f"http://{address}/metrics/average_block_time").content)
-pprint("Average block time")
-pprint(average_block_time)
+average_block_time = get(f"http://{address}/metrics/average_block_time").json()
+print("Average block time:", average_block_time)
 
-average_throughput = loads(get(f"http://{address}/metrics/average_throughput").content)
-pprint("Average throughput")
-pprint(average_throughput)
+average_throughput = get(f"http://{address}/metrics/average_throughput").json()
+print("Average throughput:", average_throughput)
 
-statistics = loads(get(f"http://{address}/metrics/statistics").content)
-pprint("Statistics")
-pprint(statistics)
+statistics = get(f"http://{address}/metrics/statistics").json()
+print("Statistics:", statistics)
 
-balances = loads(get(f"http://{address}/balances").content)
-pprint("Balances")
-pprint(balances)
-assert sum(balances) == n_nodes * 100
+balances = get(f"http://{address}/balances").json()
+print("Balances:", balances)
+assert sum(balances) == args.n_nodes * 100
 
-committed_balances = loads(get(f"http://{address}/committed_balances").content)
-pprint("Committed balances")
-pprint(committed_balances)
-assert sum(committed_balances) == n_nodes * 100
+committed_balances = get(f"http://{address}/committed_balances").json()
+print("Committed balances:", committed_balances)
+assert sum(committed_balances) == args.n_nodes * 100
 
 post(f"http://{address}/quit")

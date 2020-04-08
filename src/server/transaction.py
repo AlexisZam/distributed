@@ -1,21 +1,16 @@
-from pickle import dumps
-from threading import Thread
-
-from Cryptodome.Hash import SHA512
+from Cryptodome.Hash import BLAKE2b
 from Cryptodome.PublicKey import RSA
 from Cryptodome.Signature import PKCS1_v1_5
 
+import config
 import metrics
 import node
 import state
-from config import N_NODES
 from utils import broadcast
 
 
 class Transaction:
     def __init__(self, receiver_public_key, amount):
-        print("Creating transaction")
-
         if receiver_public_key == node.public_key:
             raise ValueError("invalid receiver_public_key")
         if amount <= 0:
@@ -34,22 +29,13 @@ class Transaction:
         if utxo_amount < amount:
             raise ValueError("insufficient amount")
 
-        h = self.__hash()
-        self.id = h.hexdigest()
+        h = self.hash()
+        self.id = h.digest()
         self.signature = PKCS1_v1_5.new(node.private_key).sign(h)
 
         self.outputs = {"receiver": amount}
         if utxo_amount != amount:
             self.outputs["sender"] = utxo_amount - amount
-
-        broadcast(
-            "/transaction/validate",
-            self,
-            wait=(
-                node.index == 0
-                and metrics.statistics["transactions_created"] <= N_NODES - 1
-            ),
-        )
 
         # side effects
         for tx_id in self.input:
@@ -58,8 +44,13 @@ class Transaction:
         if "sender" in self.outputs:
             state.utxos[self.sender_public_key][self.id] = self.outputs["sender"]
 
+        threaded = (
+            node.index != 0
+            or metrics.statistics["transactions_created"] > config.N_NODES - 1
+        )
+        broadcast("/transaction/validate", self, threaded=threaded)
+
         metrics.statistics["transactions_created"] += 1
-        print("Transaction created")
 
         state.block.add(self)
 
@@ -67,14 +58,11 @@ class Transaction:
         return self.id == other.id
 
     def validate(self, utxos, validate_block=False):
-        if not validate_block:
-            print("Validating transaction")
-
         if self.sender_public_key == self.receiver_public_key:
             raise Exception("sender == receiver")
 
-        if not PKCS1_v1_5.new(RSA.importKey(self.sender_public_key)).verify(
-            self.__hash(), self.signature
+        if not PKCS1_v1_5.new(RSA.importKey(self.sender_public_key.encode())).verify(
+            self.hash(), self.signature
         ):
             raise Exception("invalid signature")
 
@@ -91,36 +79,26 @@ class Transaction:
             utxos[self.sender_public_key][self.id] = self.outputs["sender"]
 
         if not validate_block:
-            metrics.statistics["transactions_validated"] += 1
-            print("Transaction validated")
-
             state.block.add(self)
 
-    def __hash(self):
-        data = (
-            self.sender_public_key,
-            self.receiver_public_key,
-            self.input,
-        )
-        return SHA512.new(data=dumps(data))
+    def hash(self):
+        h = BLAKE2b.new(data=self.sender_public_key.encode())
+        h.update(self.receiver_public_key.encode())
+        h.update(b"".join(self.input))
+        return h
 
 
 class GenesisTransaction(Transaction):
     def __init__(self):
-        print("Creating transaction")
-
         self.receiver_public_key = node.public_key
-        self.id = self.__hash().hexdigest()
-        self.outputs = {"receiver": 100 * N_NODES}
+        self.id = self.hash().digest()
+        self.outputs = {"receiver": 100 * config.N_NODES}
 
         # side effects
         state.utxos[self.receiver_public_key][self.id] = self.outputs["receiver"]
 
-        print("Transaction created")
-
-    def __hash(self):
-        data = self.receiver_public_key
-        return SHA512.new(data=dumps(data))
+    def hash(self):
+        return BLAKE2b.new(data=self.receiver_public_key.encode())
 
     def validate(self, utxos, validate_block=False):
         # side effects
