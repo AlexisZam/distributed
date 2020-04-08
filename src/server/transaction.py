@@ -50,8 +50,6 @@ class Transaction:
         )
         broadcast("/transaction/validate", self, threaded=threaded)
 
-        metrics.statistics["transactions_created"] += 1
-
         state.block.add(self)
 
     def __eq__(self, other):
