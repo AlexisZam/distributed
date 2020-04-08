@@ -1,3 +1,5 @@
+from marshal import dumps
+
 from Cryptodome.Hash import BLAKE2b
 from Cryptodome.PublicKey import RSA
 from Cryptodome.Signature import PKCS1_v1_5
@@ -80,10 +82,11 @@ class Transaction:
             state.block.add(self)
 
     def hash(self):
-        h = BLAKE2b.new(data=self.sender_public_key.encode())
-        h.update(self.receiver_public_key.encode())
-        h.update(b"".join(self.input))
-        return h
+        return BLAKE2b.new(
+            data=self.sender_public_key.encode()
+            + self.receiver_public_key.encode()
+            + b"".join(self.input)
+        )
 
 
 class GenesisTransaction(Transaction):
