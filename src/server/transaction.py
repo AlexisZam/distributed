@@ -49,7 +49,7 @@ class Transaction:
 
         threaded = (
             node.index != 0
-            or metrics.statistics["transactions_created"] > config.N_NODES - 1
+            or metrics.statistics["transactions_created"] >= config.N_NODES - 1
         )
         broadcast("/transaction/validate", self, threaded=threaded)
 

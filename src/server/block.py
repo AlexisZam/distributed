@@ -35,7 +35,7 @@ class Block:
                 nonce = random()
                 h_copy = h.copy()
                 h_copy.update(dumps(nonce))
-                current_hash = h.hexdigest()
+                current_hash = h_copy.hexdigest()
                 if int(current_hash[: config.DIFFICULTY], base=16) == 0:
                     self.nonce = nonce
                     self.current_hash = current_hash
@@ -87,11 +87,12 @@ class Block:
         metrics.statistics["blocks_validated"] += 1
 
     def hash(self):
-        h = blake2b(
-            dumps(
-                [tx.id for tx in self.transactions], self.timestamp, self.previous_hash
-            )
+        data = (
+            [tx.id for tx in self.transactions],
+            self.timestamp,
+            self.previous_hash,
         )
+        h = blake2b(dumps(data))
         if hasattr(self, "nonce"):
             h.update(dumps(self.nonce))
         return h
