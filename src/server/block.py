@@ -27,6 +27,7 @@ class Block:
             self.previous_hash = state.blockchain.blocks[-1].current_hash
 
             self.timestamp = time()
+
             h = self.hash()
             while True:
                 if state.validating_block.is_set():
@@ -40,6 +41,7 @@ class Block:
                     self.current_hash = current_hash
                     metrics.average_block_time.add(time() - self.timestamp)
                     break
+
             broadcast("/block/validate", self)
 
             # side effects
@@ -87,7 +89,7 @@ class Block:
     def hash(self):
         h = blake2b(
             dumps(
-                [tx.id for tx in self.transactions], self.timestamp, self.previous_hash,
+                [tx.id for tx in self.transactions], self.timestamp, self.previous_hash
             )
         )
         if hasattr(self, "nonce"):

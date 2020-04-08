@@ -90,14 +90,11 @@ class Transaction:
 class GenesisTransaction(Transaction):
     def __init__(self):
         self.receiver_public_key = node.public_key
-        self.id = self.hash().hexdigest()
+        self.id = BLAKE2b.new(data=dumps(self.receiver_public_key)).hexdigest()
         self.outputs = {"receiver": 100 * config.N_NODES}
 
         # side effects
         state.utxos[self.receiver_public_key][self.id] = self.outputs["receiver"]
-
-    def hash(self):
-        return BLAKE2b.new(data=dumps(self.receiver_public_key))
 
     def validate(self, utxos, validate_block=False):
         # side effects
