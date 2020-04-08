@@ -163,7 +163,7 @@ def block_validate():
     with lock:
         try:
             block.validate()
-        except Exception:
+        except:
             state.validating_block.clear()
             state.block.mine()
     state.validating_block.clear()
