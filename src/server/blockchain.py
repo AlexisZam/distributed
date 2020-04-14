@@ -1,10 +1,10 @@
 from collections import defaultdict
 from copy import deepcopy
 
+import config
 import metrics
 import state
 from block import Block, GenesisBlock
-from config import DIFFICULTY
 
 
 class Blockchain:
@@ -25,12 +25,12 @@ class Blockchain:
         previous = self.blocks[0]
         for block in self.blocks[1:]:
             if block.previous_hash != previous.current_hash:
-                raise Exception("invalid blockchain")
+                raise Exception("previous_hash")
             previous = block
 
         for block in self.blocks[1:]:
-            if int(block.hash().hexdigest()[:DIFFICULTY], base=16) != 0:
-                raise Exception("invalid proof of work")
+            if int(block.hash().hexdigest()[: config.DIFFICULTY], base=16) != 0:
+                raise Exception("nonce")
 
         utxos = defaultdict(dict)
         for block in self.blocks:

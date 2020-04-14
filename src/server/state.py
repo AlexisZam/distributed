@@ -2,7 +2,7 @@ from collections import defaultdict
 from pickle import loads
 from threading import Event
 
-from requests import get, post
+from requests import get
 
 import config
 import node
@@ -10,8 +10,8 @@ from block import Block
 from blockchain import Blockchain
 
 block = Block()
-utxos = defaultdict(dict)
 committed_utxos = defaultdict(dict)
+utxos = defaultdict(dict)
 
 validating_block = Event()
 

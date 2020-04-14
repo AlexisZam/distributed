@@ -3,6 +3,7 @@
 import readline
 from argparse import ArgumentParser
 from cmd import Cmd
+from pprint import pprint
 
 from requests import get, post
 
@@ -12,22 +13,25 @@ class REPL(Cmd):
     prompt = ">>> "
 
     def do_transaction(self, arg):
-        parser = ArgumentParser(prog="transaction", add_help=False)
-        parser.add_argument("index", type=int)
-        parser.add_argument("amount", type=int)
-        args = parser.parse_args(args=arg.split())
+        try:
+            parser = ArgumentParser(prog="transaction", add_help=False)
+            parser.add_argument("index", type=int)
+            parser.add_argument("amount", type=int)
+            args = parser.parse_args(args=arg.split())
+        except:
+            return
 
-        receiver_public_key = get(
-            f"http://{address}/nodes/{args.index}/public_key"
-        ).json()
         post(
             f"http://{address}/transaction",
-            json={"receiver_public_key": receiver_public_key, "amount": args.amount},
+            json={
+                "receiver_public_key": public_keys[args.index],
+                "amount": args.amount,
+            },
         )
 
     def do_view(self, _):
-        transactions = get(f"http://{address}/blockchain/blocks/last").json()
-        print(transactions)
+        transactions = get(f"http://{address}/blockchain/last_block").json()
+        pprint(transactions)
 
     def do_balance(self, _):
         balance = get(f"http://{address}/balance").json()
@@ -48,5 +52,7 @@ parser.add_argument("-h", "--host", default="127.0.0.1", type=str)
 parser.add_argument("-p", "--port", default=5000, type=int)
 args = parser.parse_args()
 address = f"{args.host}:{args.port}"
+
+public_keys = get(f"http://{address}/public_keys").json()
 
 REPL().cmdloop()

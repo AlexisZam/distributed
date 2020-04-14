@@ -33,33 +33,36 @@ class Block:
                 if state.validating_block.is_set():
                     return
                 nonce = random()
-                h_copy = h.copy()
-                h_copy.update(dumps(nonce))
-                current_hash = h_copy.hexdigest()
+                copied_h = h.copy()
+                copied_h.update(dumps(nonce))
+                current_hash = copied_h.hexdigest()
                 if int(current_hash[: config.DIFFICULTY], base=16) == 0:
                     self.nonce = nonce
                     self.current_hash = current_hash
-                    metrics.average_block_time.add(time() - self.timestamp)
                     break
+
+            metrics.average_block_time.add(time() - self.timestamp)
 
             broadcast("/block/validate", self)
 
             # side effects
-            state.blockchain.add(self)
             state.committed_utxos = deepcopy(state.utxos)
+
+            state.blockchain.add(self)
+
             state.block = Block()
 
             metrics.statistics["blocks_created"] += 1
 
     def validate(self):
         if len(self.transactions) != config.CAPACITY:
-            raise Exception("invalid capacity")
+            raise Exception("transactions")
 
         current_hash = self.hash().hexdigest()
-        if current_hash != self.current_hash:
-            raise Exception("invalid block hash")
         if int(current_hash[: config.DIFFICULTY], base=16) != 0:
-            raise Exception("invalid proof of work")
+            raise Exception("nonce")
+        if current_hash != self.current_hash:
+            raise Exception("current_hash")
 
         if self.previous_hash != state.blockchain.blocks[-1].current_hash:
             if self.previous_hash in [
@@ -74,9 +77,10 @@ class Block:
             transaction.validate(utxos, validate_block=True)
 
         # side effects
-        state.blockchain.add(self)
         state.committed_utxos = utxos
         state.utxos = deepcopy(utxos)
+
+        state.blockchain.add(self)
 
         transactions = deepcopy(state.block.transactions)
         state.block = Block()
@@ -88,7 +92,7 @@ class Block:
 
     def hash(self):
         data = (
-            [tx.id for tx in self.transactions],
+            [transaction.id for transaction in self.transactions],
             self.timestamp,
             self.previous_hash,
         )
@@ -97,19 +101,17 @@ class Block:
             h.update(dumps(self.nonce))
         return h
 
-    # FIXME might go on forever
-    # TODO check with block headers, resolve conflict from check failure onwards
     @staticmethod
     def resolve_conflict():
         while True:
-            max_length, address = max(
+            length, address = max(
                 (get(f"http://{address}/blockchain/length").json(), address)
                 for address in node.addresses
                 if address != node.address
             )
             blockchain = loads(get(f"http://{address}/blockchain").content)
-            if max_length <= len(blockchain.blocks):
-                if max_length >= len(state.blockchain.blocks):
+            if length <= len(blockchain.blocks):
+                if length >= len(state.blockchain.blocks):
                     try:
                         blockchain.validate()
                     except:
@@ -122,9 +124,7 @@ class Block:
 class GenesisBlock(Block):
     def __init__(self):
         self.transactions = [GenesisTransaction()]
-        self.timestamp = time()
         self.current_hash = 0
-        self.index = 0
 
         # side effects
         state.block = Block()

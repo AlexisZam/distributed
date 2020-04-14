@@ -29,8 +29,8 @@ while True:
 
 sleep(30)
 
-index = get(f"http://{address}/index").json()
-
+public_key = get(f"http://{address}/public_key").json()
+index = public_keys.index(public_key)
 with open(
     f"/home/user/distributed/transactions/{ceil(args.n_nodes / 5) * 5}nodes/transactions{index}.txt"
 ) as f:
@@ -42,40 +42,42 @@ with open(
                 json={"receiver_public_key": public_keys[index], "amount": amount},
             )
 
-prev_balances = get(f"http://{address}/balances").json()
-prev_committed_balances = get(f"http://{address}/committed_balances").json()
+previous_balances = get(f"http://{address}/balances").json()
+previous_committed_balances = get(f"http://{address}/committed_balances").json()
 n_equals = 0
 while True:
     sleep(60)
-    curr_balances = get(f"http://{address}/balances").json()
-    curr_committed_balances = get(f"http://{address}/committed_balances").json()
+    current_balances = get(f"http://{address}/balances").json()
+    current_committed_balances = get(f"http://{address}/committed_balances").json()
     if (
-        curr_balances == prev_balances
-        and curr_committed_balances == prev_committed_balances
+        current_balances == previous_balances
+        and current_committed_balances == previous_committed_balances
     ):
         n_equals += 1
         if n_equals == 5:
             break
     else:
         n_equals = 0
-    prev_balances = curr_balances
-    prev_committed_balances = curr_committed_balances
+    previous_balances = current_balances
+    previous_committed_balances = current_committed_balances
 
-average_block_time = get(f"http://{address}/metrics/average_block_time").json()
+average_block_time = get(f"http://{address}/average_block_time").json()
 print("Average block time:", average_block_time)
 
-average_throughput = get(f"http://{address}/metrics/average_throughput").json()
+average_throughput = get(f"http://{address}/average_throughput").json()
 print("Average throughput:", average_throughput)
 
-statistics = get(f"http://{address}/metrics/statistics").json()
+statistics = get(f"http://{address}/statistics").json()
 print("Statistics:", statistics)
 
 balances = get(f"http://{address}/balances").json()
 print("Balances:", balances)
-assert sum(balances) == args.n_nodes * 100
+if sum(balances) != args.n_nodes * 100:
+    raise Exception("balances")
 
 committed_balances = get(f"http://{address}/committed_balances").json()
 print("Committed balances:", committed_balances)
-assert sum(committed_balances) == args.n_nodes * 100
+if sum(committed_balances) != args.n_nodes * 100:
+    raise Exception("committed_balances")
 
 post(f"http://{address}/quit")

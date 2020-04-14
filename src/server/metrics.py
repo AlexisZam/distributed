@@ -2,7 +2,7 @@ from collections import defaultdict
 from threading import Lock
 from time import time
 
-from config import N_NODES
+import config
 
 
 class AverageBlockTime:
@@ -18,7 +18,10 @@ class AverageBlockTime:
 
     def get(self):
         with self.lock:
-            return None if self.counter == 0 else self.sum / self.counter
+            try:
+                return self.sum / self.counter
+            except:
+                return None
 
 
 class AverageThroughput:
@@ -28,7 +31,7 @@ class AverageThroughput:
 
     def increment(self):
         with self.lock:
-            if self.counter == N_NODES - 1:
+            if self.counter == config.N_NODES - 1:
                 self.start = time()
             self.counter += 1
 
@@ -38,11 +41,12 @@ class AverageThroughput:
 
     def get(self):
         with self.lock:
-            return (
-                None
-                if self.counter == 0
-                else (self.counter - (N_NODES - 1)) / (self.finish - self.start)
-            )
+            try:
+                return (self.counter - (config.N_NODES - 1)) / (
+                    self.finish - self.start
+                )
+            except:
+                return None
 
 
 average_block_time = AverageBlockTime()

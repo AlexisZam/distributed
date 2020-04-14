@@ -15,8 +15,6 @@ from transaction import Transaction
 
 app = Flask(__name__)
 
-lock = Lock()
-
 # Login
 
 if node.address == config.BOOTSTRAP_ADDRESS:
@@ -26,36 +24,30 @@ if node.address == config.BOOTSTRAP_ADDRESS:
     @app.route("/login", methods=["POST"])
     def login():
         json = request.get_json()
-        with lock:
-            index = len(node.public_keys)
-            node.addresses.append(json["address"])
-            node.public_keys.append(json["public_key"])
+
+        node.addresses.append(json["address"])
+        node.public_keys.append(json["public_key"])
 
         barrier.wait()
-        return jsonify(index, node.addresses, node.public_keys)
+        return jsonify(node.addresses, node.public_keys)
 
 
 # Get node
 
 
-@app.route("/index")
-def index():
-    return jsonify(node.index)
-
-
-@app.route("/nodes/<index>/public_key")
-def public_key(index):
-    return jsonify(node.public_keys[int(index)])
-
-
-@app.route("/public_keys")
-def public_keys():
-    return jsonify(node.public_keys)
+@app.route("/public_key")
+def public_key():
+    return jsonify(node.public_key)
 
 
 @app.route("/addresses")
 def addresses():
     return jsonify(node.addresses)
+
+
+@app.route("/public_keys")
+def public_keys():
+    return jsonify(node.public_keys)
 
 
 # Get state
@@ -64,18 +56,6 @@ def addresses():
 @app.route("/balance")
 def balance():
     return jsonify(sum(state.utxos[node.public_key].values()))
-
-
-@app.route("/committed_balance")
-def committed_balance():
-    return jsonify(sum(state.committed_utxos[node.public_key].values()))
-
-
-@app.route("/balances")
-def balances():
-    return jsonify(
-        [sum(state.utxos[public_key].values()) for public_key in node.public_keys]
-    )
 
 
 @app.route("/committed_balances")
@@ -88,9 +68,24 @@ def committed_balances():
     )
 
 
+@app.route("/balances")
+def balances():
+    return jsonify(
+        [sum(state.utxos[public_key].values()) for public_key in node.public_keys]
+    )
+
+
 @app.route("/blockchain")
 def blockchain():
     return dumps(state.blockchain)
+
+
+@app.route("/blockchain/last_block")
+def blockchain_last_block():
+    transactions = [
+        transaction.__dict__ for transaction in state.blockchain.blocks[-1].transactions
+    ]
+    return jsonify(transactions)
 
 
 @app.route("/blockchain/length")
@@ -98,37 +93,29 @@ def blockchain_length():
     return jsonify(len(state.blockchain.blocks))
 
 
-@app.route("/blockchain/blocks/last")
-def blockchain_blocks_last():
-    return jsonify(
-        [
-            transaction.__dict__  # FIXME
-            for transaction in state.blockchain.blocks[-1].transactions
-        ]
-    )
-
-
 # Get metrics
 
 
-@app.route("/metrics/average_throughput")
+@app.route("/average_throughput")
 def average_throughput():
     return jsonify(metrics.average_throughput.get())
 
 
-@app.route("/metrics/average_block_time")
+@app.route("/average_block_time")
 def average_block_time():
     return jsonify(metrics.average_block_time.get())
 
 
-@app.route("/metrics/statistics")
+@app.route("/statistics")
 def statistics():
     return jsonify(metrics.statistics)
 
 
 # Post
 
-# TODO authorize this view
+lock = Lock()
+
+
 @app.route("/transaction", methods=["POST"])
 def transaction():
     json = request.get_json()
@@ -139,6 +126,7 @@ def transaction():
         Transaction(json["receiver_public_key"], json["amount"])
 
     metrics.statistics["transactions_created"] += 1
+
     return ""
 
 
@@ -152,13 +140,14 @@ def transaction_validate():
         transaction.validate(state.utxos)
 
     metrics.statistics["transactions_validated"] += 1
+
     return ""
 
 
-# TODO should mining be more parallel?
 @app.route("/block/validate", methods=["POST"])
 def block_validate():
     block = loads(request.get_data())
+
     state.validating_block.set()
     with lock:
         try:
